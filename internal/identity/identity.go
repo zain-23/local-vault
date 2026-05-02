@@ -1,24 +1,10 @@
 package identity
 
-// identity.go manages device identity
-// Every machine that uses LocalVault has:
-// 1. A unique device ID (like a username)
-// 2. A keypair (private + public key)
-//    Private key = stays on this machine forever
-//    Public key  = shared with teammates during invite
-
-// We use Ed25519 for signing and X25519 for encryption
-// Ed25519 → proves a message came from you (signing)
-// X25519  → encrypts data so only recipient can read (key exchange)
-
 import (
-	"crypto/ed25519" // Ed25519 signing algorithm
-	// same algorithm GitHub uses for SSH keys
-	"crypto/rand"   // cryptographically secure random numbers
-	"encoding/json" // JSON marshal/unmarshal
-	"encoding/pem"  // PEM encoding (standard key file format)
-
-	// same format as .pem files in SSL certificates
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"os"
@@ -26,70 +12,82 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	// generates unique IDs
-	// like crypto.randomUUID() in JS
+	"golang.org/x/crypto/curve25519"
 )
 
-// Identity represents this device's identity
+// Identity represents this device's public identity
 // Stored in .lv/identity.json
 type Identity struct {
-	DeviceID   string    `json:"device_id"`   // unique ID for this machine
-	DeviceName string    `json:"device_name"` // human readable name e.g. "Arslan's MacBook"
-	CreatedAt  time.Time `json:"created_at"`
-	PublicKey  []byte    `json:"public_key"` // safe to share with teammates
+	DeviceID        string    `json:"device_id"`
+	DeviceName      string    `json:"device_name"`
+	CreatedAt       time.Time `json:"created_at"`
+	PublicKey       []byte    `json:"public_key"`        // Ed25519 — for signing
+	X25519PublicKey []byte    `json:"x25519_public_key"` // X25519 — for encryption
 }
 
-// FullIdentity holds everything including private key
-// Private key is NEVER stored in identity.json
-// It lives in a separate file: identity.key
+// FullIdentity holds everything including private keys
+// Private keys never leave this struct — never stored in JSON
 type FullIdentity struct {
 	Identity
-	PrivateKey ed25519.PrivateKey // kept only in memory after loading
+	PrivateKey       ed25519.PrivateKey // Ed25519 private key for signing
+	X25519PrivateKey []byte             // X25519 private key for encryption
 }
 
-// File names inside .lv/ folder
 const (
-	identityFile = "identity.json" // public info — safe to commit
-	privateFile  = "identity.key"  // private key — NEVER commit
-	publicFile   = "identity.pub"  // public key — safe to share
+	identityFile = "identity.json"
+	privateFile  = "identity.key"
+	publicFile   = "identity.pub"
 )
 
 // Generate creates a brand new identity for this device
 // Called once during: lv init
-// Never called again on same machine
 func Generate(lvDir string) (*FullIdentity, error) {
-	// Generate Ed25519 keypair
-	// ed25519.GenerateKey returns (publicKey, privateKey, error)
-	// privateKey in Go's ed25519 actually contains both
-	// private and public parts together (64 bytes total)
+	// Generate Ed25519 keypair for signing
+	// Used to prove messages come from us
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate keypair: %w", err)
+		return nil, fmt.Errorf("failed to generate Ed25519 keypair: %w", err)
 	}
 
-	// Generate unique device ID
-	// uuid.New() creates a v4 UUID like: "a3f9b2c1-4d5e-6f7a-8b9c-0d1e2f3a4b5c"
-	deviceID := uuid.New().String()
+	// Generate X25519 keypair for encryption
+	// Used for secure key exchange with peers
+	// Separate from Ed25519 — correct cryptographic practice
+	var x25519Private [32]byte
+	if _, err := rand.Read(x25519Private[:]); err != nil {
+		return nil, fmt.Errorf("failed to generate X25519 private key: %w", err)
+	}
 
-	// Get computer hostname as device name
-	// Like: os.hostname() in Node.js
+	// Clamp private key bits as per RFC 7748
+	// Required for X25519 to work correctly
+	x25519Private[0] &= 248
+	x25519Private[31] &= 127
+	x25519Private[31] |= 64
+
+	// Derive X25519 public key from private key
+	// curve25519.Basepoint is the standard generator point
+	x25519Public, err := curve25519.X25519(x25519Private[:], curve25519.Basepoint)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive X25519 public key: %w", err)
+	}
+
+	// Get hostname for human readable device name
 	hostname, err := os.Hostname()
 	if err != nil {
-		hostname = "unknown-device" // fallback if hostname unavailable
+		hostname = "unknown-device"
 	}
 
-	// Build identity struct
 	id := &FullIdentity{
 		Identity: Identity{
-			DeviceID:   deviceID,
-			DeviceName: hostname,
-			CreatedAt:  time.Now(),
-			PublicKey:  publicKey,
+			DeviceID:        uuid.New().String(),
+			DeviceName:      hostname,
+			CreatedAt:       time.Now(),
+			PublicKey:       publicKey,
+			X25519PublicKey: x25519Public,
 		},
-		PrivateKey: privateKey,
+		PrivateKey:       privateKey,
+		X25519PrivateKey: x25519Private[:],
 	}
 
-	// Save to disk
 	if err := id.Save(lvDir); err != nil {
 		return nil, err
 	}
@@ -99,59 +97,56 @@ func Generate(lvDir string) (*FullIdentity, error) {
 
 // Save writes identity files to disk
 // Saves 3 files:
-// identity.json → public metadata
-// identity.key  → private key (protected)
-// identity.pub  → public key (shareable)
+// identity.json → public metadata (safe to commit)
+// identity.key  → both private keys (never commit)
+// identity.pub  → Ed25519 public key (safe to share)
 func (id *FullIdentity) Save(lvDir string) error {
-	// Save public identity JSON
-	// This file is safe to read by anyone
+	// Save public identity as JSON
 	identityData, err := json.MarshalIndent(id.Identity, "", "  ")
-	// MarshalIndent = JSON.stringify(obj, null, 2) in JS
 	if err != nil {
 		return fmt.Errorf("failed to serialize identity: %w", err)
 	}
 
 	identityPath := filepath.Join(lvDir, identityFile)
 	if err := os.WriteFile(identityPath, identityData, 0644); err != nil {
-		// 0644 = owner can read/write, others can read
 		return fmt.Errorf("failed to save identity: %w", err)
 	}
 
-	// Save private key in PEM format
-	// PEM is standard format for cryptographic keys
-	// Same format as: -----BEGIN RSA PRIVATE KEY-----
-	// We use 0600 permission = ONLY owner can read/write
-	// No one else on the system can read this file
-	privateBlock := &pem.Block{
-		Type:  "ED25519 PRIVATE KEY",
-		Bytes: id.PrivateKey, // raw private key bytes
-	}
-
+	// Save private keys to identity.key
+	// One file contains both Ed25519 and X25519 private keys
+	// Protected with 0600 permissions — only owner can read
 	privatePath := filepath.Join(lvDir, privateFile)
-	privateFile, err := os.OpenFile(privatePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	f, err := os.OpenFile(privatePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to create private key file: %w", err)
 	}
-	defer privateFile.Close()
+	defer f.Close()
 
-	if err := pem.Encode(privateFile, privateBlock); err != nil {
-		return fmt.Errorf("failed to write private key: %w", err)
+	// Write Ed25519 private key as first PEM block
+	ed25519Block := &pem.Block{
+		Type:  "ED25519 PRIVATE KEY",
+		Bytes: id.PrivateKey,
+	}
+	if err := pem.Encode(f, ed25519Block); err != nil {
+		return fmt.Errorf("failed to write Ed25519 private key: %w", err)
 	}
 
-	// Save public key in PEM format
-	// This file is safe to share with teammates
-	// During invite, we send this to the other device
+	// Write X25519 private key as second PEM block
+	x25519Block := &pem.Block{
+		Type:  "X25519 PRIVATE KEY",
+		Bytes: id.X25519PrivateKey,
+	}
+	if err := pem.Encode(f, x25519Block); err != nil {
+		return fmt.Errorf("failed to write X25519 private key: %w", err)
+	}
+
+	// Save Ed25519 public key to identity.pub
 	publicBlock := &pem.Block{
 		Type:  "ED25519 PUBLIC KEY",
 		Bytes: id.PublicKey,
 	}
-
 	publicPath := filepath.Join(lvDir, publicFile)
-	if err := os.WriteFile(
-		publicPath,
-		pem.EncodeToMemory(publicBlock), // convert PEM block to bytes
-		0644,
-	); err != nil {
+	if err := os.WriteFile(publicPath, pem.EncodeToMemory(publicBlock), 0644); err != nil {
 		return fmt.Errorf("failed to save public key: %w", err)
 	}
 
@@ -159,7 +154,7 @@ func (id *FullIdentity) Save(lvDir string) error {
 }
 
 // Load reads identity from disk
-// Called at start of any command that needs identity (invite, join, sync)
+// Called before any command that needs identity
 func Load(lvDir string) (*FullIdentity, error) {
 	// Read public identity JSON
 	identityPath := filepath.Join(lvDir, identityFile)
@@ -171,57 +166,49 @@ func Load(lvDir string) (*FullIdentity, error) {
 		return nil, fmt.Errorf("failed to read identity: %w", err)
 	}
 
-	// Parse JSON into Identity struct
 	var id Identity
 	if err := json.Unmarshal(data, &id); err != nil {
 		return nil, fmt.Errorf("failed to parse identity: %w", err)
 	}
 
-	// Read private key file
+	// Read private keys file
 	privatePath := filepath.Join(lvDir, privateFile)
 	privateData, err := os.ReadFile(privatePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read private key: %w", err)
+		return nil, fmt.Errorf("failed to read private key file: %w", err)
 	}
 
-	// Decode PEM block
-	// pem.Decode returns the first PEM block found in data
-	block, _ := pem.Decode(privateData)
-	if block == nil {
-		return nil, errors.New("failed to decode private key — file may be corrupted")
+	// Decode first PEM block — Ed25519 private key
+	ed25519Block, rest := pem.Decode(privateData)
+	if ed25519Block == nil {
+		return nil, errors.New("failed to decode Ed25519 private key")
 	}
 
-	// Convert raw bytes to ed25519.PrivateKey type
-	// ed25519.PrivateKey is just []byte with a specific length (64 bytes)
-	privateKey := ed25519.PrivateKey(block.Bytes)
+	// Decode second PEM block — X25519 private key
+	x25519Block, _ := pem.Decode(rest)
+	if x25519Block == nil {
+		return nil, errors.New("failed to decode X25519 private key — try running lv init again")
+	}
 
 	return &FullIdentity{
-		Identity:   id,
-		PrivateKey: privateKey,
+		Identity:         id,
+		PrivateKey:       ed25519.PrivateKey(ed25519Block.Bytes),
+		X25519PrivateKey: x25519Block.Bytes,
 	}, nil
 }
 
 // Sign creates a cryptographic signature for a message
 // Used to prove a message came from this device
-// Like a digital signature on a document
-//
-// Example use: when sending vault changes to peers
-// We sign the changes so receiver knows it really came from us
 func (id *FullIdentity) Sign(message []byte) []byte {
-	// ed25519.Sign(privateKey, message) returns 64-byte signature
 	return ed25519.Sign(id.PrivateKey, message)
 }
 
 // Verify checks if a signature was made by a specific public key
-// Used to verify messages from peers are authentic
-// Returns true if signature is valid, false if tampered
 func Verify(publicKey []byte, message []byte, signature []byte) bool {
-	// ed25519.Verify returns bool
 	return ed25519.Verify(publicKey, message, signature)
 }
 
-// PublicKeyString returns public key as readable string
-// Used when displaying device info to user
+// PublicKeyString returns Ed25519 public key as PEM string
 func (id *FullIdentity) PublicKeyString() string {
 	block := &pem.Block{
 		Type:  "ED25519 PUBLIC KEY",
@@ -231,9 +218,7 @@ func (id *FullIdentity) PublicKeyString() string {
 }
 
 // Exists checks if identity already exists in a directory
-// Used by lv init to avoid overwriting existing identity
 func Exists(lvDir string) bool {
-	identityPath := filepath.Join(lvDir, identityFile)
-	_, err := os.Stat(identityPath)
-	return err == nil // true if file exists
+	_, err := os.Stat(filepath.Join(lvDir, identityFile))
+	return err == nil
 }

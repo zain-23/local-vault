@@ -30,6 +30,23 @@ type Secret struct {
 	UpdatedBy string    `json:"updated_by"` // which device changed it (for sync)
 }
 
+// Peer represents a trusted teammate's device
+// Stored after successful lv join
+type Peer struct {
+	DeviceID        string    `json:"device_id"`
+	DeviceName      string    `json:"device_name"`
+	PublicKey       []byte    `json:"public_key"`        // Ed25519 public key
+	X25519PublicKey []byte    `json:"x25519_public_key"` // X25519 public key for encryption
+	AddedAt         time.Time `json:"added_at"`
+}
+
+type SecretEntry struct {
+	Key       string    `json:"key"`
+	Value     string    `json:"value"`
+	Env       string    `json:"env"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // VaultFile is what gets written to disk (encrypted)
 // Contains all secrets + metadata
 type VaultFile struct {
@@ -37,6 +54,7 @@ type VaultFile struct {
 	Salt      []byte    `json:"salt"`      // salt for key derivation
 	PassHash  string    `json:"pass_hash"` // hashed passphrase for validation
 	Secrets   []Secret  `json:"secrets"`   // all the secrets
+	Peers     []Peer    `json:"peers"`     // trusted devices for sync
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -398,4 +416,93 @@ func parseEnvLine(line string) (string, string, bool) {
 		}
 	}
 	return "", "", false
+}
+
+// AddPeer saves a trusted peer to the vault
+// Called after successful lv join
+func (v *Vault) AddPeer(peer Peer) error {
+	// Check if peer already exists
+	for i, p := range v.file.Peers {
+		if p.DeviceID == peer.DeviceID {
+			// Update existing peer info
+			v.file.Peers[i].PublicKey = peer.PublicKey
+			v.file.Peers[i].DeviceName = peer.DeviceName
+			return v.save()
+		}
+	}
+
+	// Add new peer
+	v.file.Peers = append(v.file.Peers, peer)
+	return v.save()
+}
+
+// GetPeers returns all trusted peers
+func (v *Vault) GetPeers() []Peer {
+	return v.file.Peers
+}
+
+// GetSecretEntries returns secrets in sync-friendly format
+// Used when sending vault to a new peer
+// GetSecretEntries returns all secrets in transfer format
+// Called by lv push to prepare secrets for sending to peers
+func (v *Vault) GetSecretEntries() []SecretEntry {
+	entries := make([]SecretEntry, len(v.file.Secrets))
+	for i, s := range v.file.Secrets {
+		entries[i] = SecretEntry{
+			Key:       s.Key,
+			Value:     s.Value,
+			Env:       s.Env,
+			UpdatedAt: s.UpdatedAt,
+		}
+	}
+	return entries
+}
+
+// MergeSecrets adds secrets received from peer
+// Newer timestamp wins on conflict
+// MergeSecrets merges secrets received from peer into vault
+// Newer timestamp wins on conflict
+// Takes []SecretEntry not []sync.SecretEntry to avoid circular imports
+func (v *Vault) MergeSecrets(entries []SecretEntry) (int, error) {
+	updated := 0
+
+	for _, entry := range entries {
+		found := false
+		for i, existing := range v.file.Secrets {
+			if existing.Key == entry.Key && existing.Env == entry.Env {
+				found = true
+				if entry.UpdatedAt.After(existing.UpdatedAt) {
+					v.file.Secrets[i].Value = entry.Value
+					v.file.Secrets[i].UpdatedAt = entry.UpdatedAt
+					updated++
+				}
+				break
+			}
+		}
+		if !found {
+			v.file.Secrets = append(v.file.Secrets, Secret{
+				Key:       entry.Key,
+				Value:     entry.Value,
+				Env:       entry.Env,
+				UpdatedAt: entry.UpdatedAt,
+			})
+			updated++
+		}
+	}
+
+	if updated > 0 {
+		v.file.UpdatedAt = time.Now()
+		return updated, v.save()
+	}
+
+	return 0, nil
+}
+
+func (v *Vault) GetPeer(deviceID string) (Peer, bool) {
+	for _, p := range v.file.Peers {
+		if p.DeviceID == deviceID {
+			return p, true
+		}
+	}
+	return Peer{}, false
 }

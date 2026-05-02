@@ -42,12 +42,13 @@ type InviteSession struct {
 // stored when recipient is offline
 // Like an email sitting in a mailbox
 type PendingMessage struct {
-	ID           string    `json:"id"`
-	ForDeviceID  string    `json:"for_device_id"`  // recipient's device ID
-	FromDeviceID string    `json:"from_device_id"` // sender's device ID
-	Payload      []byte    `json:"payload"`        // encrypted blob (server cannot read)
-	CreatedAt    time.Time `json:"created_at"`
-	ExpiresAt    time.Time `json:"expires_at"` // messages expire after 48 hours
+	ID            string    `json:"id"`
+	ForDeviceID   string    `json:"for_device_id"`
+	FromDeviceID  string    `json:"from_device_id"`
+	FromPublicKey []byte    `json:"from_public_key"` // ← ADD THIS
+	Payload       []byte    `json:"payload"`
+	CreatedAt     time.Time `json:"created_at"`
+	ExpiresAt     time.Time `json:"expires_at"`
 }
 
 // PeerInfo is returned to Dev B after invite code lookup
