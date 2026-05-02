@@ -50,13 +50,24 @@ type SecretEntry struct {
 // VaultFile is what gets written to disk (encrypted)
 // Contains all secrets + metadata
 type VaultFile struct {
-	Version   string    `json:"version"`   // vault format version
-	Salt      []byte    `json:"salt"`      // salt for key derivation
-	PassHash  string    `json:"pass_hash"` // hashed passphrase for validation
-	Secrets   []Secret  `json:"secrets"`   // all the secrets
-	Peers     []Peer    `json:"peers"`     // trusted devices for sync
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Version   string       `json:"version"`   // vault format version
+	Salt      []byte       `json:"salt"`      // salt for key derivation
+	PassHash  string       `json:"pass_hash"` // hashed passphrase for validation
+	Secrets   []Secret     `json:"secrets"`   // all the secrets
+	Peers     []Peer       `json:"peers"`     // trusted devices for sync
+	AuditLog  []AuditEntry `json:"audit_log"`
+	CreatedAt time.Time    `json:"created_at"`
+	UpdatedAt time.Time    `json:"updated_at"`
+}
+
+// AuditEntry records a change made to the vault
+// Stored locally — full history of who changed what
+type AuditEntry struct {
+	Action    string    `json:"action"`    // add, update, remove, rotate
+	Key       string    `json:"key"`       // which secret changed
+	Env       string    `json:"env"`       // which environment
+	DeviceID  string    `json:"device_id"` // who made the change
+	Timestamp time.Time `json:"timestamp"`
 }
 
 // Vault is the in-memory representation
@@ -208,9 +219,9 @@ func (v *Vault) Add(key, value, env string) error {
 	// Check if key already exists — update it if so
 	for i, s := range v.file.Secrets {
 		if s.Key == key && s.Env == env {
-			// Update existing secret
 			v.file.Secrets[i].Value = value
 			v.file.Secrets[i].UpdatedAt = time.Now()
+			v.LogAction("update", key, env, "local") // ← add this
 			return v.save()
 		}
 	}
@@ -222,7 +233,7 @@ func (v *Vault) Add(key, value, env string) error {
 		Env:       env,
 		UpdatedAt: time.Now(),
 	})
-
+	v.LogAction("add", key, env, "local") // ← add this
 	v.file.UpdatedAt = time.Now()
 	return v.save()
 }
@@ -260,13 +271,11 @@ func (v *Vault) List(env string) []Secret {
 // Called by: lv remove KEY
 func (v *Vault) Remove(key, env string) error {
 	found := false
-	// Build new slice without the removed secret
-	// In JS: secrets.filter(s => !(s.key === key && s.env === env))
 	var remaining []Secret
 	for _, s := range v.file.Secrets {
 		if s.Key == key && (s.Env == env || env == "") {
 			found = true
-			continue // skip this one (removes it)
+			continue
 		}
 		remaining = append(remaining, s)
 	}
@@ -275,6 +284,7 @@ func (v *Vault) Remove(key, env string) error {
 		return fmt.Errorf("secret '%s' not found", key)
 	}
 
+	v.LogAction("remove", key, env, "local") // ← add this
 	v.file.Secrets = remaining
 	v.file.UpdatedAt = time.Now()
 	return v.save()
@@ -505,4 +515,36 @@ func (v *Vault) GetPeer(deviceID string) (Peer, bool) {
 		}
 	}
 	return Peer{}, false
+}
+
+// LogAction records an action in the audit log
+// Called internally by Add, Remove, rotate
+func (v *Vault) LogAction(action, key, env, deviceID string) {
+	entry := AuditEntry{
+		Action:    action,
+		Key:       key,
+		Env:       env,
+		DeviceID:  deviceID,
+		Timestamp: time.Now(),
+	}
+	// Keep last 100 entries only
+	// Prevents log from growing forever
+	v.file.AuditLog = append(v.file.AuditLog, entry)
+	if len(v.file.AuditLog) > 100 {
+		v.file.AuditLog = v.file.AuditLog[len(v.file.AuditLog)-100:]
+	}
+}
+
+// GetAuditLog returns audit log entries
+// Newest first
+func (v *Vault) GetAuditLog() []AuditEntry {
+	log := make([]AuditEntry, len(v.file.AuditLog))
+	copy(log, v.file.AuditLog)
+
+	// Reverse so newest is first
+	// Like: log.reverse() in JS
+	for i, j := 0, len(log)-1; i < j; i, j = i+1, j-1 {
+		log[i], log[j] = log[j], log[i]
+	}
+	return log
 }
