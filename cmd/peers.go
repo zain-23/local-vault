@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/zain-23/local-vault/internal/vault"
 )
 
 var peersCmd = &cobra.Command{
@@ -21,12 +20,8 @@ var peersCmd = &cobra.Command{
 			return err
 		}
 
-		passphrase, err := promptPassphrase()
-		if err != nil {
-			return err
-		}
-
-		v, err := vault.Load(dir, passphrase)
+		// Use session key — no passphrase needed
+		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}

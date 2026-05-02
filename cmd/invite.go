@@ -27,7 +27,7 @@ var inviteCmd = &cobra.Command{
 
 		lvDir := filepath.Join(dir, ".lv")
 
-		// Load identity
+		// Load identity — no passphrase needed for this
 		id, err := identity.Load(lvDir)
 		if err != nil {
 			return err
@@ -54,18 +54,17 @@ var inviteCmd = &cobra.Command{
 		}
 
 		// Register invite on signaling server
-		// Send X25519 public key so peer can encrypt secrets for us
 		_, err = sc.CreateInvite(client.CreateInviteRequest{
 			Code:      code,
 			DeviceID:  id.DeviceID,
-			PublicKey: id.X25519PublicKey, // X25519 for encryption
+			PublicKey: id.X25519PublicKey,
 			IPHint:    getLocalIP(),
 		})
 		if err != nil {
 			return err
 		}
 
-		// Show invite code to user
+		// Show invite code
 		fmt.Println()
 		fmt.Println("🔐 LocalVault Invite")
 		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -81,16 +80,11 @@ var inviteCmd = &cobra.Command{
 		fmt.Printf("📱 Device: %s\n", id.DeviceName)
 		fmt.Println()
 		fmt.Println("⏳ Waiting for teammate to join...")
-		fmt.Println("   (press Ctrl+C to cancel and run lv push manually)")
+		fmt.Println("   (press Ctrl+C to cancel)")
 		fmt.Println()
 
-		// Load vault so we can save peer when they join
-		passphrase, err := promptPassphrase()
-		if err != nil {
-			return err
-		}
-
-		v, err := vault.Load(dir, passphrase)
+		// Load vault using session — no passphrase needed
+		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}
@@ -100,7 +94,7 @@ var inviteCmd = &cobra.Command{
 		ticker := time.NewTicker(3 * time.Second)
 		defer ticker.Stop()
 
-		// Stop waiting after 10 minutes
+		// Stop after 10 minutes
 		timeout := time.After(10 * time.Minute)
 
 		for {
@@ -111,18 +105,17 @@ var inviteCmd = &cobra.Command{
 				return nil
 
 			case <-ticker.C:
-				// Check mailbox for Dev B's hello
 				msgs, err := sc.GetMessages()
 				if err != nil {
-					continue // network error — keep trying
-				}
-
-				if msgs.Count == 0 {
-					fmt.Print(".") // show progress dots while waiting
 					continue
 				}
 
-				// Someone joined
+				if msgs.Count == 0 {
+					fmt.Print(".")
+					continue
+				}
+
+				// Teammate joined
 				fmt.Println()
 				fmt.Println("🎉 Teammate joined!")
 
@@ -131,7 +124,7 @@ var inviteCmd = &cobra.Command{
 						continue
 					}
 
-					// Save them as trusted peer using their X25519 public key
+					// Save as trusted peer
 					err = v.AddPeer(vault.Peer{
 						DeviceID:        msg.FromDeviceID,
 						DeviceName:      msg.FromDeviceID,
@@ -147,7 +140,7 @@ var inviteCmd = &cobra.Command{
 				}
 
 				fmt.Println()
-				fmt.Println("Now run: lv push")
+				fmt.Println("Run: lv push")
 				fmt.Println("To send your secrets to the new teammate.")
 				return nil
 			}
@@ -166,7 +159,6 @@ func generateInviteCode() (string, error) {
 }
 
 // getLocalIP returns machine's local network IP
-// Used as hint for LAN peer discovery
 func getLocalIP() string {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {

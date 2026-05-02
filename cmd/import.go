@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"github.com/zain-23/local-vault/internal/vault"
 )
 
 var importCmd = &cobra.Command{
@@ -18,25 +17,15 @@ var importCmd = &cobra.Command{
 	Example: `  lv import .env.local
   lv import .env.production --env production
   lv import .env.development --env development`,
-
-	// ExactArgs(1) = user must provide the file path
 	Args: cobra.ExactArgs(1),
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// args[0] = file path user provided
-		// Example: ".env.local" or "/home/user/project/.env"
 		filePath := args[0]
 
-		// Check if file exists BEFORE asking for passphrase
-		// Better UX — fail fast if file not found
-		// Like: fs.existsSync(filePath) in Node.js
+		// Check file exists BEFORE loading vault
+		// Fail fast — better UX
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
 			return fmt.Errorf("file not found: %s", filePath)
-		}
-
-		passphrase, err := promptPassphrase()
-		if err != nil {
-			return err
 		}
 
 		dir, err := os.Getwd()
@@ -44,14 +33,14 @@ var importCmd = &cobra.Command{
 			return err
 		}
 
-		v, err := vault.Load(dir, passphrase)
+		// Use session key — no passphrase needed
+		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}
 
-		// ImportEnvFile is defined in internal/vault/vault.go
-		// Reads the file, parses KEY=VALUE lines, adds to vault
-		// Returns count of how many secrets were imported
+		// Read and parse .env file
+		// Adds all KEY=VALUE lines to vault
 		count, err := v.ImportEnvFile(filePath, envFlag)
 		if err != nil {
 			return err
@@ -65,17 +54,18 @@ var importCmd = &cobra.Command{
 		fmt.Printf("✅ Imported %d secrets (%s)\n", count, env)
 		fmt.Println()
 		fmt.Printf("💡 You can now safely delete %s\n", filePath)
-		fmt.Printf("   Add it to .gitignore if not already there\n")
-
-		// Show what was imported
-		// List all secrets so user can verify
+		fmt.Println("   Add it to .gitignore if not already there")
 		fmt.Println()
+
+		// Show imported keys so user can verify
 		fmt.Println("Imported secrets:")
 		secrets := v.List(envFlag)
 		for _, s := range secrets {
-			// Print key name, mask value with asterisks
 			fmt.Printf("  ✓ %s\n", s.Key)
 		}
+
+		fmt.Println()
+		fmt.Println("Run: lv push   to sync with peers")
 
 		return nil
 	},

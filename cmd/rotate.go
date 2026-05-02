@@ -40,20 +40,13 @@ var rotateCmd = &cobra.Command{
 
 		lvDir := filepath.Join(dir, ".lv")
 
-		// Load vault
-		passphrase, err := promptPassphrase()
-		if err != nil {
-			return err
-		}
-
-		v, err := vault.Load(dir, passphrase)
+		// Use session key — no passphrase needed
+		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}
 
 		rotateAll, _ := cmd.Flags().GetBool("all")
-
-		// Track rotated keys
 		rotatedKeys := []string{}
 
 		if rotateAll {
@@ -76,9 +69,8 @@ var rotateCmd = &cobra.Command{
 					continue
 				}
 
-				masked := maskValue(existing)
 				fmt.Printf("Key     : %s\n", key)
-				fmt.Printf("Current : %s\n", masked)
+				fmt.Printf("Current : %s\n", maskValue(existing))
 				fmt.Printf("New value: ")
 
 				newValueBytes, err := term.ReadPassword(int(syscall.Stdin))
@@ -103,7 +95,6 @@ var rotateCmd = &cobra.Command{
 			}
 		}
 
-		// Nothing changed
 		if len(rotatedKeys) == 0 {
 			fmt.Println("No secrets were rotated.")
 			return nil
@@ -124,6 +115,7 @@ var rotateCmd = &cobra.Command{
 			return nil
 		}
 
+		// Load identity and config for pushing
 		id, err := identity.Load(lvDir)
 		if err != nil {
 			return err
@@ -192,10 +184,7 @@ var rotateCmd = &cobra.Command{
 }
 
 // rotateWithEditor opens all secrets in terminal editor
-// User edits values they want to change, saves and closes
-// Returns list of keys that were changed
 func rotateWithEditor(v *vault.Vault, env string) ([]string, error) {
-	// Get current secrets
 	secrets := v.List(env)
 	if len(secrets) == 0 {
 		fmt.Println("No secrets found.")
@@ -203,9 +192,7 @@ func rotateWithEditor(v *vault.Vault, env string) ([]string, error) {
 	}
 
 	// Build editor file content
-	// Shows all current KEY=VALUE pairs
 	var content strings.Builder
-
 	content.WriteString("# LocalVault Secret Editor\n")
 	content.WriteString("# ─────────────────────────────────────────\n")
 	content.WriteString("# Edit the values you want to rotate\n")
@@ -216,15 +203,12 @@ func rotateWithEditor(v *vault.Vault, env string) ([]string, error) {
 	content.WriteString("\n")
 
 	// Group by environment
-	// All envs together if no filter
 	currentEnv := ""
 	for _, s := range secrets {
 		envLabel := s.Env
 		if envLabel == "" {
 			envLabel = "all"
 		}
-
-		// Add environment header when it changes
 		if envLabel != currentEnv {
 			if currentEnv != "" {
 				content.WriteString("\n")
@@ -232,26 +216,20 @@ func rotateWithEditor(v *vault.Vault, env string) ([]string, error) {
 			content.WriteString(fmt.Sprintf("# Environment: %s\n", envLabel))
 			currentEnv = envLabel
 		}
-
 		content.WriteString(fmt.Sprintf("%s=%s\n", s.Key, s.Value))
 	}
 
-	// Save snapshot of original values
-	// Used to detect what changed after editor closes
+	// Snapshot original values to detect changes
 	originalValues := map[string]string{}
 	for _, s := range secrets {
 		originalValues[s.Key] = s.Value
 	}
 
 	// Write to temp file
-	// Like: fs.writeFileSync('/tmp/lv-rotate-xxx.env', content)
 	tmpFile, err := os.CreateTemp("", "lv-rotate-*.env")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file: %w", err)
 	}
-
-	// Always clean up temp file when done
-	// defer = runs when function exits (like finally in JS)
 	defer os.Remove(tmpFile.Name())
 
 	if _, err := tmpFile.WriteString(content.String()); err != nil {
@@ -260,62 +238,46 @@ func rotateWithEditor(v *vault.Vault, env string) ([]string, error) {
 	tmpFile.Close()
 
 	// Open editor
-	// Tries editors in this order: $EDITOR env var, nano, vim, vi
 	editor := getEditor()
 	fmt.Printf("📝 Opening %s...\n", editor)
 	fmt.Println("   Edit values, save and close to apply changes")
 	fmt.Println()
 
-	// Run editor as child process
-	// os/exec.Command works like child_process.spawn in Node.js
 	editorCmd := exec.Command(editor, tmpFile.Name())
-
-	// Connect editor to our terminal
-	// So user sees and interacts with editor normally
 	editorCmd.Stdin = os.Stdin
 	editorCmd.Stdout = os.Stdout
 	editorCmd.Stderr = os.Stderr
 
-	// Wait for editor to close
 	if err := editorCmd.Run(); err != nil {
 		return nil, fmt.Errorf("editor exited with error: %w", err)
 	}
 
-	// Read edited file
+	// Read and parse edited file
 	editedContent, err := os.ReadFile(tmpFile.Name())
 	if err != nil {
 		return nil, fmt.Errorf("failed to read edited file: %w", err)
 	}
 
-	// Parse edited content
-	// Find what changed compared to original
 	newValues := parseEnvContent(string(editedContent))
 
-	// Apply changes
+	// Apply only changed values
 	rotatedKeys := []string{}
 	for key, newValue := range newValues {
 		originalValue, exists := originalValues[key]
 		if !exists {
-			// New key added in editor — skip
-			// Use lv add for new keys
 			fmt.Printf("⚠️  Skipping new key %s — use lv add instead\n", key)
 			continue
 		}
-
 		if newValue == originalValue {
-			// Value unchanged — skip
-			continue
+			continue // unchanged — skip
 		}
-
 		if newValue == "" {
-			// Empty value — skip
 			fmt.Printf("⚠️  Empty value for %s — skipping\n", key)
 			continue
 		}
 
-		// Value changed — rotate it
-		envValue := ""
 		// Find original env for this key
+		envValue := ""
 		for _, s := range secrets {
 			if s.Key == key {
 				envValue = s.Env
@@ -334,67 +296,43 @@ func rotateWithEditor(v *vault.Vault, env string) ([]string, error) {
 	return rotatedKeys, nil
 }
 
-// getEditor returns the editor to use
-// Checks $EDITOR env var first, then falls back to common editors
+// getEditor returns editor to use
+// Checks $EDITOR then $VISUAL then common editors
 func getEditor() string {
-	// Check $EDITOR environment variable first
-	// User can set: export EDITOR=code (for VS Code)
 	if editor := os.Getenv("EDITOR"); editor != "" {
 		return editor
 	}
-
-	// Check $VISUAL env var (used by some systems)
 	if editor := os.Getenv("VISUAL"); editor != "" {
 		return editor
 	}
-
-	// Try common editors in order of friendliness
 	editors := []string{"nano", "vim", "vi"}
 	for _, e := range editors {
-		// Check if editor exists on system
-		// exec.LookPath = which nano in terminal
 		if _, err := exec.LookPath(e); err == nil {
 			return e
 		}
 	}
-
-	// Last resort
 	return "vi"
 }
 
-// parseEnvContent parses KEY=VALUE lines from editor file
-// Ignores comment lines starting with #
-// Returns map of key → value
+// parseEnvContent parses KEY=VALUE lines ignoring comments
 func parseEnvContent(content string) map[string]string {
 	result := map[string]string{}
 	lines := strings.Split(content, "\n")
-
 	for _, line := range lines {
-		// Trim whitespace
 		line = strings.TrimSpace(line)
-
-		// Skip empty lines and comments
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-
-		// Parse KEY=VALUE
-		// SplitN with n=2 means split on FIRST = only
-		// Handles values that contain = like URLs
-		// postgres://user:pass@host/db?ssl=true
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) != 2 {
 			continue
 		}
-
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
-
 		if key != "" {
 			result[key] = value
 		}
 	}
-
 	return result
 }
 

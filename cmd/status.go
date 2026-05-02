@@ -11,7 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/zain-23/local-vault/internal/identity"
-	"github.com/zain-23/local-vault/internal/vault"
+	"github.com/zain-23/local-vault/internal/session"
 )
 
 var statusCmd = &cobra.Command{
@@ -25,19 +25,14 @@ var statusCmd = &cobra.Command{
 
 		lvDir := filepath.Join(dir, ".lv")
 
-		// Load identity — no passphrase needed for this
+		// Load identity — no passphrase needed
 		id, err := identity.Load(lvDir)
 		if err != nil {
 			return err
 		}
 
-		// Load vault
-		passphrase, err := promptPassphrase()
-		if err != nil {
-			return err
-		}
-
-		v, err := vault.Load(dir, passphrase)
+		// Load vault using session
+		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}
@@ -55,10 +50,22 @@ var statusCmd = &cobra.Command{
 			envCounts[env]++
 		}
 
+		// Check session status
+		var lockStatus string
+		remaining, err := session.TimeRemaining(lvDir)
+		if err != nil {
+			lockStatus = "🔒 Locked"
+		} else {
+			hours := int(remaining.Hours())
+			minutes := int(remaining.Minutes()) % 60
+			lockStatus = fmt.Sprintf("🔓 Unlocked (%dh %dm remaining)", hours, minutes)
+		}
+
 		fmt.Println("🔐 LocalVault Status")
 		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 		fmt.Printf("  Device    : %s\n", id.DeviceName)
 		fmt.Printf("  Device ID : %s\n", id.DeviceID)
+		fmt.Printf("  Session   : %s\n", lockStatus)
 		fmt.Println()
 		fmt.Printf("  Secrets   : %d total\n", len(secrets))
 
@@ -70,7 +77,8 @@ var statusCmd = &cobra.Command{
 		fmt.Println()
 		fmt.Printf("  Peers     : %d trusted\n", len(peers))
 		for _, peer := range peers {
-			fmt.Printf("    ├─ %s (%s)\n", peer.DeviceName, peer.DeviceID[:8]+"...")
+			fmt.Printf("    ├─ %s (%s)\n",
+				peer.DeviceName, peer.DeviceID[:8]+"...")
 		}
 
 		fmt.Println()

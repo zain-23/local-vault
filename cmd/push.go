@@ -10,7 +10,6 @@ import (
 	"github.com/zain-23/local-vault/internal/config"
 	"github.com/zain-23/local-vault/internal/identity"
 	internalsync "github.com/zain-23/local-vault/internal/sync"
-	"github.com/zain-23/local-vault/internal/vault"
 )
 
 var pushCmd = &cobra.Command{
@@ -24,7 +23,7 @@ var pushCmd = &cobra.Command{
 
 		lvDir := filepath.Join(dir, ".lv")
 
-		// Load identity
+		// Load identity — no passphrase needed
 		id, err := identity.Load(lvDir)
 		if err != nil {
 			return err
@@ -36,13 +35,8 @@ var pushCmd = &cobra.Command{
 			return err
 		}
 
-		// Load vault
-		passphrase, err := promptPassphrase()
-		if err != nil {
-			return err
-		}
-
-		v, err := vault.Load(dir, passphrase)
+		// Load vault using session — no passphrase needed
+		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}
@@ -57,7 +51,6 @@ var pushCmd = &cobra.Command{
 
 		// Create signaling client
 		sc := client.New(cfg.SignalingServer, id.DeviceID)
-
 		if err := sc.HealthCheck(); err != nil {
 			return err
 		}
@@ -81,7 +74,6 @@ var pushCmd = &cobra.Command{
 
 		// Encrypt and send to each peer
 		for _, peer := range peers {
-			// Need peer's X25519 public key to encrypt for them
 			if peer.X25519PublicKey == nil {
 				fmt.Printf("  ⚠️  No encryption key for %s — skipping\n",
 					peer.DeviceName)
@@ -89,11 +81,10 @@ var pushCmd = &cobra.Command{
 			}
 
 			// Encrypt using our X25519 private + peer's X25519 public
-			// Only this peer can decrypt — their private key required
 			payload, err := internalsync.EncryptForPeer(
 				syncSecrets,
-				id.X25519PrivateKey,  // our private key
-				peer.X25519PublicKey, // their public key
+				id.X25519PrivateKey,
+				peer.X25519PublicKey,
 				id.DeviceID,
 			)
 			if err != nil {
@@ -102,9 +93,9 @@ var pushCmd = &cobra.Command{
 				continue
 			}
 
-			// Send to peer's mailbox on signaling server
-			// If peer online → they get it immediately
-			// If peer offline → stored for 48 hours
+			// Send to peer mailbox
+			// Peer online  → receives immediately
+			// Peer offline → stored for 48 hours
 			err = sc.SendMessage(client.SendMessageRequest{
 				ForDeviceID:   peer.DeviceID,
 				FromDeviceID:  id.DeviceID,
@@ -131,6 +122,3 @@ var pushCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(pushCmd)
 }
-
-// Ensure vault import used
-var _ = vault.Peer{}

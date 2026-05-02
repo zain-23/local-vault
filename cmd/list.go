@@ -6,7 +6,6 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
-	"github.com/zain-23/local-vault/internal/vault"
 )
 
 // Terminal styles using lipgloss (like CSS)
@@ -16,10 +15,10 @@ var (
 			Foreground(lipgloss.Color("#7C3AED"))
 
 	keyStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#10B981")) // green
+			Foreground(lipgloss.Color("#10B981"))
 
 	envBadgeStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#6B7280")). // gray
+			Foreground(lipgloss.Color("#6B7280")).
 			Italic(true)
 )
 
@@ -27,13 +26,10 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all secrets (keys only, values hidden)",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		passphrase, err := promptPassphrase()
-		if err != nil {
-			return err
-		}
-
 		dir, _ := os.Getwd()
-		v, err := vault.Load(dir, passphrase)
+
+		// Use session key — no passphrase needed
+		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}
@@ -48,7 +44,6 @@ var listCmd = &cobra.Command{
 		fmt.Println(headerStyle.Render("🔐 LocalVault Secrets"))
 		fmt.Println()
 
-		// Print each secret (key only, value masked)
 		for _, s := range secrets {
 			env := s.Env
 			if env == "" {

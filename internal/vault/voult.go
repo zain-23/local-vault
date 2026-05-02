@@ -74,9 +74,10 @@ type AuditEntry struct {
 // After we decrypt + parse VaultFile, we work with this struct
 // It holds both the data and the paths/keys needed to save it back
 type Vault struct {
-	file       VaultFile // the actual data
-	passphrase string    // kept in memory to re-encrypt on save
-	dir        string    // path to .lv/ folder
+	file       VaultFile
+	passphrase string // used when loaded with passphrase
+	key        []byte // used when loaded with session key
+	dir        string
 }
 
 // ===== CONSTANTS =====
@@ -213,6 +214,53 @@ func Load(dir string, passphrase string) (*Vault, error) {
 	}, nil
 }
 
+// LoadWithKey loads vault using raw key bytes
+// Used when key is retrieved from session cache
+// No passphrase needed — key already derived
+func LoadWithKey(dir string, key []byte) (*Vault, error) {
+	lvPath := filepath.Join(dir, lvDir)
+	vaultPath := filepath.Join(lvPath, vaultFile)
+
+	// Read encrypted file
+	encryptedData, err := os.ReadFile(vaultPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, errors.New("no vault found — run: lv init")
+		}
+		return nil, fmt.Errorf("failed to read vault: %w", err)
+	}
+
+	if len(encryptedData) < 16 {
+		return nil, errors.New("vault file corrupted")
+	}
+
+	// Extract salt and encrypted data
+	salt := encryptedData[:16]
+	actualEncrypted := encryptedData[16:]
+
+	// Decrypt using provided key
+	decryptedData, err := crypto.Decrypt(actualEncrypted, key)
+	if err != nil {
+		return nil, errors.New("failed to decrypt vault — session may be invalid")
+	}
+
+	// Parse vault file
+	var vf VaultFile
+	if err := json.Unmarshal(decryptedData, &vf); err != nil {
+		return nil, fmt.Errorf("failed to parse vault: %w", err)
+	}
+
+	// We need salt for future saves
+	// Store it back so save() works correctly
+	vf.Salt = salt
+
+	return &Vault{
+		file: vf,
+		key:  key, // store key directly instead of passphrase
+		dir:  lvPath,
+	}, nil
+}
+
 // Add stores a new secret in the vault
 // Called by: lv add KEY=value
 func (v *Vault) Add(key, value, env string) error {
@@ -340,29 +388,26 @@ func (v *Vault) ImportEnvFile(path, env string) (int, error) {
 
 // save encrypts and writes vault to disk
 func (v *Vault) save() error {
-	// Convert struct to JSON bytes
-	// Like: JSON.stringify(vaultFile)
 	jsonData, err := json.Marshal(v.file)
 	if err != nil {
 		return fmt.Errorf("failed to serialize vault: %w", err)
 	}
 
-	// Derive encryption key from passphrase + salt
-	key := crypto.DeriveKey(v.passphrase, v.file.Salt)
+	// Use key directly if available (session mode)
+	// Otherwise derive from passphrase (first unlock)
+	var key []byte
+	if v.key != nil {
+		key = v.key
+	} else {
+		key = crypto.DeriveKey(v.passphrase, v.file.Salt)
+	}
 
-	// Encrypt the JSON data
 	encrypted, err := crypto.Encrypt(jsonData, key)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt vault: %w", err)
 	}
 
-	// Prepend salt to encrypted data
-	// Format: [16 bytes salt][encrypted data]
-	// We need salt to derive key during Load()
 	finalData := append(v.file.Salt, encrypted...)
-
-	// Write to disk with restrictive permissions
-	// 0600 = only owner can read/write
 	vaultPath := filepath.Join(v.dir, vaultFile)
 	return os.WriteFile(vaultPath, finalData, 0600)
 }
@@ -547,4 +592,14 @@ func (v *Vault) GetAuditLog() []AuditEntry {
 		log[i], log[j] = log[j], log[i]
 	}
 	return log
+}
+
+// GetKey returns the derived encryption key
+// Called after Load() to save key to session cache
+func (v *Vault) GetKey() []byte {
+	if v.key != nil {
+		return v.key
+	}
+	// Derive from passphrase if key not set
+	return crypto.DeriveKey(v.passphrase, v.file.Salt)
 }

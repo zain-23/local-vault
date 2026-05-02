@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/zain-23/local-vault/internal/client"
@@ -29,7 +28,7 @@ var joinCmd = &cobra.Command{
 
 		lvDir := filepath.Join(dir, ".lv")
 
-		// Load our identity
+		// Load identity — no passphrase needed
 		id, err := identity.Load(lvDir)
 		if err != nil {
 			return err
@@ -58,18 +57,13 @@ var joinCmd = &cobra.Command{
 		fmt.Printf("✅ Found peer: %s\n", peer.DeviceID)
 		fmt.Println("🤝 Exchanging keys...")
 
-		// Load vault
-		passphrase, err := promptPassphrase()
+		// Load vault using session — no passphrase needed
+		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}
 
-		v, err := vault.Load(dir, passphrase)
-		if err != nil {
-			return err
-		}
-
-		// Save Dev A as trusted peer using their X25519 public key
+		// Save Dev A as trusted peer
 		err = v.AddPeer(vault.Peer{
 			DeviceID:        peer.DeviceID,
 			DeviceName:      peer.DeviceID,
@@ -162,10 +156,6 @@ var joinCmd = &cobra.Command{
 	},
 }
 
-// init registers command — Go calls this automatically
 func init() {
 	rootCmd.AddCommand(joinCmd)
 }
-
-// Ensure time import is used
-var _ = time.Now

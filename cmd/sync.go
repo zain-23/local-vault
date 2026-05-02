@@ -24,7 +24,7 @@ var syncCmd = &cobra.Command{
 
 		lvDir := filepath.Join(dir, ".lv")
 
-		// Load identity
+		// Load identity — no passphrase needed
 		id, err := identity.Load(lvDir)
 		if err != nil {
 			return err
@@ -36,13 +36,8 @@ var syncCmd = &cobra.Command{
 			return err
 		}
 
-		// Load vault
-		passphrase, err := promptPassphrase()
-		if err != nil {
-			return err
-		}
-
-		v, err := vault.Load(dir, passphrase)
+		// Load vault using session — no passphrase needed
+		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}
@@ -74,7 +69,7 @@ var syncCmd = &cobra.Command{
 			// Find sender in trusted peers
 			peer, found := v.GetPeer(msg.FromDeviceID)
 			if !found {
-				// Unknown peer — save them if they sent their public key
+				// Unknown peer — save if they sent public key
 				if msg.FromPublicKey != nil {
 					err = v.AddPeer(vault.Peer{
 						DeviceID:        msg.FromDeviceID,
@@ -95,13 +90,13 @@ var syncCmd = &cobra.Command{
 				}
 			}
 
-			// Skip hello messages — they are just peer discovery
+			// Skip hello messages — peer discovery only
 			if string(msg.Payload) == "hello" {
 				fmt.Printf("👋 Hello from %s — peer saved\n", msg.FromDeviceID)
 				continue
 			}
 
-			// Check peer has X25519 key for decryption
+			// Check peer has X25519 key
 			if peer.X25519PublicKey == nil {
 				fmt.Printf("⚠️  No encryption key for peer %s — skipping\n",
 					msg.FromDeviceID)
@@ -111,8 +106,8 @@ var syncCmd = &cobra.Command{
 			// Decrypt using our X25519 private + sender's X25519 public
 			rawSecrets, err := internalsync.DecryptFromPeer(
 				msg.Payload,
-				id.X25519PrivateKey,  // our private key
-				peer.X25519PublicKey, // sender's public key
+				id.X25519PrivateKey,
+				peer.X25519PublicKey,
 			)
 			if err != nil {
 				fmt.Printf("⚠️  Could not decrypt message from %s: %v\n",
@@ -120,7 +115,6 @@ var syncCmd = &cobra.Command{
 				continue
 			}
 
-			// Skip empty payloads
 			if len(rawSecrets) == 0 {
 				continue
 			}

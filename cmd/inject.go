@@ -3,10 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"os/exec" // runs external commands (like child_process in Node.js)
+	"os/exec"
 
 	"github.com/spf13/cobra"
-	"github.com/zain-23/local-vault/internal/vault"
 )
 
 var injectCmd = &cobra.Command{
@@ -16,13 +15,10 @@ var injectCmd = &cobra.Command{
   lv inject -- npm run dev     # run command with secrets injected
   lv inject --env staging -- npm start`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		passphrase, err := promptPassphrase()
-		if err != nil {
-			return err
-		}
-
 		dir, _ := os.Getwd()
-		v, err := vault.Load(dir, passphrase)
+
+		// Use session key — no passphrase needed
+		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}
@@ -30,8 +26,14 @@ var injectCmd = &cobra.Command{
 		// Get secrets as key→value map
 		secrets := v.InjectMap(envFlag)
 
-		// If no command provided, print export statements
-		// User can eval this: eval $(lv inject)
+		if len(secrets) == 0 {
+			fmt.Println("No secrets found for this environment.")
+			fmt.Println("Add secrets with: lv add KEY=value")
+			return nil
+		}
+
+		// No command provided — print export statements
+		// User can eval: eval $(lv inject)
 		if len(args) == 0 {
 			for key, value := range secrets {
 				fmt.Printf("export %s=%q\n", key, value)
@@ -39,31 +41,29 @@ var injectCmd = &cobra.Command{
 			return nil
 		}
 
-		// Run the provided command with secrets injected
-		// args[0] is the command, args[1:] are its arguments
-		// Example: args = ["npm", "run", "dev"]
+		// Run command with secrets injected as env vars
 		command := exec.Command(args[0], args[1:]...)
 
-		// Start with current environment
-		// Then add our secrets on top
-		// os.Environ() = all current env vars (like process.env in Node.js)
+		// Start with current shell env
+		// Then add vault secrets on top
 		command.Env = os.Environ()
 		for key, value := range secrets {
-			command.Env = append(command.Env, fmt.Sprintf("%s=%s", key, value))
+			command.Env = append(command.Env,
+				fmt.Sprintf("%s=%s", key, value))
 		}
 
-		// Connect command's stdin/stdout/stderr to our terminal
-		// So the spawned process feels native (colors, interactive input, etc.)
+		// Connect to terminal so spawned process feels native
+		// Colors, interactive input, live output all work correctly
 		command.Stdin = os.Stdin
 		command.Stdout = os.Stdout
 		command.Stderr = os.Stderr
 
-		fmt.Printf("🚀 Injected %d secrets, starting: %s\n\n", len(secrets), args[0])
+		fmt.Printf("🚀 Injected %d secrets, starting: %s\n\n",
+			len(secrets), args[0])
 
-		// Run the command and wait for it to finish
-		// Like: child_process.spawnSync() in Node.js
+		// Run and wait for process to finish
 		if err := command.Run(); err != nil {
-			// Exit with same code as the child process
+			// Exit with same code as child process
 			if exitErr, ok := err.(*exec.ExitError); ok {
 				os.Exit(exitErr.ExitCode())
 			}
