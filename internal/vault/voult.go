@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/zain-23/local-vault/internal/crypto"
+	"github.com/zain-23/local-vault/internal/identity"
 )
 
 // ===== DATA STRUCTURES =====
@@ -106,6 +107,13 @@ func Init(dir string, passphrase string) error {
 	// Save encrypted vault to disk
 	if err := v.save(); err != nil {
 		return fmt.Errorf("failed to save vault: %w", err)
+	}
+
+	// Generate device identity (keypair)
+	// Every machine gets unique ID and Ed25519 keypair
+	// This is what makes sync secure between peers
+	if _, err := identity.Generate(lvPath); err != nil {
+		return fmt.Errorf("failed to generate identity: %w", err)
 	}
 
 	// Add .gitignore rules to prevent secrets from being committed
@@ -335,7 +343,7 @@ func (v *Vault) save() error {
 func addGitignoreRules(dir string) error {
 	gitignorePath := filepath.Join(dir, ".gitignore")
 
-	rules := "\n# LocalVault\n.lv/vault.json.enc\n.lv/identity.key\n"
+	rules := "\n# LocalVault\n.lv/vault.json.enc\n.lv/identity.key\n.lv/identity.json\n"
 
 	// Open file in append mode, create if not exists
 	// os.O_APPEND = add to end, os.O_CREATE = create if missing
