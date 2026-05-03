@@ -19,6 +19,7 @@ const configFile = "config.json"
 func Load(lvDir string) (*Config, error) {
 	serverURL := os.Getenv("SERVER_URL")
 
+	
 	configPath := filepath.Join(lvDir, configFile)
 	data, err := os.ReadFile(configPath)
 	if err != nil {
