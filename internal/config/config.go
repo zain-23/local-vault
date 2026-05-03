@@ -17,7 +17,7 @@ type Config struct {
 const configFile = "config.json"
 
 func Load(lvDir string) (*Config, error) {
-	serverURL := os.Getenv("SERVER_URL")
+	serverURL := os.Getenv("SERVER_URL_")
 
 	
 	configPath := filepath.Join(lvDir, configFile)
