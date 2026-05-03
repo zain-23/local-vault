@@ -15,5 +15,11 @@ local-voult
 .lv/vault.json.enc
 .lv/identity.key
 .lv/identity.json
+<<<<<<< HEAD
 
 .env
+=======
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
+>>>>>>> f2b6807 (Refactor client and server code for vault management and token handling)
