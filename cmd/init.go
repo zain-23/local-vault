@@ -7,6 +7,9 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+	"github.com/zain-23/local-vault/internal/client"
+	"github.com/zain-23/local-vault/internal/config"
+	"github.com/zain-23/local-vault/internal/identity"
 	"github.com/zain-23/local-vault/internal/session"
 	"github.com/zain-23/local-vault/internal/vault"
 	"golang.org/x/term"
@@ -26,7 +29,6 @@ var initCmd = &cobra.Command{
 			return fmt.Errorf("failed to read passphrase: %w", err)
 		}
 
-		// Confirm passphrase
 		fmt.Print("Confirm passphrase: ")
 		confirmBytes, err := term.ReadPassword(int(syscall.Stdin))
 		fmt.Println()
@@ -39,7 +41,6 @@ var initCmd = &cobra.Command{
 		}
 
 		passphrase := string(passphraseBytes)
-
 		if len(passphrase) < 8 {
 			return fmt.Errorf("passphrase must be at least 8 characters")
 		}
@@ -49,17 +50,55 @@ var initCmd = &cobra.Command{
 			return err
 		}
 
+		lvDir := filepath.Join(dir, ".lv")
+
 		// Initialize vault on disk
 		if err := vault.Init(dir, passphrase); err != nil {
 			return err
 		}
 
+		// Load identity
+		id, err := identity.Load(lvDir)
+		if err != nil {
+			return err
+		}
+
+		// Load config
+		cfg, err := config.Load(lvDir)
+		if err != nil {
+			return err
+		}
+
+		// Register vault on signaling server
+		fmt.Println("🌐 Registering vault on server...")
+		sc := client.New(cfg.SignalingServer, id.DeviceID)
+
+		if err := sc.HealthCheck(); err != nil {
+			fmt.Println("⚠️  Could not reach server — working offline")
+			fmt.Println("   Run: lv push when online to register")
+		} else {
+			resp, err := sc.RegisterVault(client.RegisterVaultRequest{
+				OwnerID:         id.DeviceID,
+				OwnerName:       id.DeviceName,
+				PublicKey:       id.PublicKey,
+				X25519PublicKey: id.X25519PublicKey,
+			})
+
+			if err != nil {
+				fmt.Printf("⚠️  Server registration failed: %v\n", err)
+			} else {
+				// Save vault ID to config
+				cfg.VaultID = resp.VaultID
+				cfg.DeviceID = id.DeviceID
+				config.Save(lvDir, cfg)
+
+				fmt.Printf("✅ Registered — Vault ID: %s\n", resp.VaultID)
+			}
+		}
+
 		// Auto unlock after init
-		// User just proved they know the passphrase
-		// No need to run lv unlock separately right after lv init
 		v, err := vault.Load(dir, passphrase)
 		if err == nil {
-			lvDir := filepath.Join(dir, ".lv")
 			if err := session.Save(lvDir, v.GetKey()); err == nil {
 				fmt.Println("🔓 Auto-unlocked for 12 hours")
 			}
@@ -72,8 +111,8 @@ var initCmd = &cobra.Command{
 		fmt.Println()
 		fmt.Println("Next steps:")
 		fmt.Println("  lv add DATABASE_URL=postgres://...")
-		fmt.Println("  lv add API_KEY=sk-xxx")
-		fmt.Println("  lv inject -- npm run dev")
+		fmt.Println("  lv push")
+		fmt.Println("  lv invite --name \"Ahmed\"")
 
 		return nil
 	},

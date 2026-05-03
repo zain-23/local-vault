@@ -603,3 +603,26 @@ func (v *Vault) GetKey() []byte {
 	// Derive from passphrase if key not set
 	return crypto.DeriveKey(v.passphrase, v.file.Salt)
 }
+
+// RemovePeer removes a trusted peer from the vault
+func (v *Vault) RemovePeer(deviceID string) error {
+	found := false
+	var remaining []Peer
+
+	for _, p := range v.file.Peers {
+		if p.DeviceID == deviceID {
+			found = true
+			continue
+		}
+		remaining = append(remaining, p)
+	}
+
+	if !found {
+		return fmt.Errorf("peer not found: %s", deviceID)
+	}
+
+	v.file.Peers = remaining
+	v.file.UpdatedAt = time.Now()
+	v.LogAction("revoke", deviceID, "", "local")
+	return v.save()
+}

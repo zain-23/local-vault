@@ -1,161 +1,117 @@
 package main
 
-// Signaling Server for LocalVault
-//
-// This is a completely separate program from the CLI.
-// You deploy this once on a server.
-// All LocalVault users share this one server.
-//
-// Think of it like a post office:
-// - People drop off encrypted letters (invite codes, messages)
-// - Recipients pick them up
-// - Post office never opens the letters
-
 import (
-	// JSON encode/decode
-	"fmt"
-	"log" // server logging
+	"crypto/rand"
+	"encoding/hex"
+	"log"
 	"os"
-	"sync" // sync.RWMutex — safe concurrent map access
+	"sync"
 	"time"
 
-	"github.com/gofiber/fiber/v2"                   // web framework like Express
-	"github.com/gofiber/fiber/v2/middleware/cors"   // allow cross-origin requests
-	"github.com/gofiber/fiber/v2/middleware/logger" // request logging
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 )
 
 // ===== DATA STRUCTURES =====
 
-// InviteSession represents a pending invite
-// Created when Dev A runs: lv invite
-// Consumed when Dev B runs: lv join LV-XXXX
-type InviteSession struct {
-	Code      string    `json:"code"`       // invite code e.g. "LV-A3F9-X2K1"
-	DeviceID  string    `json:"device_id"`  // Dev A's device ID
-	PublicKey []byte    `json:"public_key"` // Dev A's public key
-	IPHint    string    `json:"ip_hint"`    // Dev A's IP (for LAN detection)
+// Vault represents a registered vault on the server
+// Created when Dev A runs lv init
+type Vault struct {
+	ID        string    `json:"id"`       // unique vault ID
+	OwnerID   string    `json:"owner_id"` // Dev A device ID
 	CreatedAt time.Time `json:"created_at"`
-	ExpiresAt time.Time `json:"expires_at"` // codes expire after 10 minutes
+	UpdatedAt time.Time `json:"updated_at"`
+	Snapshot  []byte    `json:"snapshot"` // latest encrypted vault blob
+	Peers     []Peer    `json:"peers"`    // all registered peers
+	Tokens    []Token   `json:"tokens"`   // active join tokens
 }
 
-// PendingMessage represents an encrypted message
-// stored when recipient is offline
-// Like an email sitting in a mailbox
+// Peer represents a device that has joined the vault
+type Peer struct {
+	DeviceID        string    `json:"device_id"`
+	DeviceName      string    `json:"device_name"`
+	PublicKey       []byte    `json:"public_key"`        // Ed25519
+	X25519PublicKey []byte    `json:"x25519_public_key"` // for encryption
+	JoinedAt        time.Time `json:"joined_at"`
+}
+
+// Token represents a join token
+// Like a GitHub personal access token
+type Token struct {
+	ID        string     `json:"id"`   // token value: lv_join_xxx
+	Name      string     `json:"name"` // human label e.g. "Ahmed"
+	CreatedAt time.Time  `json:"created_at"`
+	ExpiresAt *time.Time `json:"expires_at"` // nil = never expires
+	Revoked   bool       `json:"revoked"`
+}
+
+// PendingMessage for offline peer delivery
 type PendingMessage struct {
 	ID            string    `json:"id"`
 	ForDeviceID   string    `json:"for_device_id"`
 	FromDeviceID  string    `json:"from_device_id"`
-	FromPublicKey []byte    `json:"from_public_key"` // ← ADD THIS
+	FromPublicKey []byte    `json:"from_public_key"`
 	Payload       []byte    `json:"payload"`
 	CreatedAt     time.Time `json:"created_at"`
 	ExpiresAt     time.Time `json:"expires_at"`
 }
 
-// PeerInfo is returned to Dev B after invite code lookup
-// Contains everything B needs to connect to A
-type PeerInfo struct {
-	DeviceID  string `json:"device_id"`
-	PublicKey []byte `json:"public_key"`
-	IPHint    string `json:"ip_hint"`
-}
-
-// ===== IN-MEMORY STORE =====
-// Simple storage using Go maps
-// sync.RWMutex makes it safe for concurrent access
-// RWMutex = multiple readers OR one writer at a time
-// Like a read-write lock in any language
+// ===== STORE =====
 
 type Store struct {
-	mu       sync.RWMutex                 // protects concurrent access
-	invites  map[string]*InviteSession    // code → session
+	mu       sync.RWMutex
+	vaults   map[string]*Vault            // vaultID → vault
 	messages map[string][]*PendingMessage // deviceID → messages
 }
 
-// NewStore creates empty store
 func NewStore() *Store {
 	return &Store{
-		invites:  make(map[string]*InviteSession),
+		vaults:   make(map[string]*Vault),
 		messages: make(map[string][]*PendingMessage),
 	}
 }
 
-// AddInvite stores a new invite session
-// Called when Dev A runs: lv invite
-func (s *Store) AddInvite(session *InviteSession) {
-	// Lock for writing
-	// Like: mutex.lock() in other languages
-	s.mu.Lock()
-	defer s.mu.Unlock() // unlock when function exits
-
-	s.invites[session.Code] = session
+// generateID creates a random hex ID
+func generateID(prefix string, length int) string {
+	b := make([]byte, length)
+	rand.Read(b)
+	return prefix + hex.EncodeToString(b)
 }
 
-// GetInvite retrieves and REMOVES an invite session
-// Invite codes are single-use — once B joins, code is deleted
-func (s *Store) GetInvite(code string) (*InviteSession, bool) {
-	s.mu.Lock() // write lock because we delete after reading
-	defer s.mu.Unlock()
+// GetVault finds vault by ID
+func (s *Store) GetVault(id string) (*Vault, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	v, ok := s.vaults[id]
+	return v, ok
+}
 
-	session, exists := s.invites[code]
-	if !exists {
-		return nil, false
+// GetVaultByToken finds vault using a join token
+func (s *Store) GetVaultByToken(token string) (*Vault, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, vault := range s.vaults {
+		for _, t := range vault.Tokens {
+			if t.ID == token && !t.Revoked {
+				// Check expiry
+				if t.ExpiresAt != nil && time.Now().After(*t.ExpiresAt) {
+					continue
+				}
+				return vault, true
+			}
+		}
 	}
-
-	// Check if expired
-	if time.Now().After(session.ExpiresAt) {
-		delete(s.invites, code) // clean up expired invite
-		return nil, false
-	}
-
-	// Delete after retrieval — single use code
-	delete(s.invites, code)
-	return session, true
+	return nil, false
 }
 
-// AddMessage stores an encrypted message for offline peer
-// Called when Dev A changes a secret and Dev B is offline
-func (s *Store) AddMessage(msg *PendingMessage) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	// Append to this device's message queue
-	// Like pushing to an array: messages[deviceID].push(msg)
-	s.messages[msg.ForDeviceID] = append(s.messages[msg.ForDeviceID], msg)
-}
-
-// GetMessages retrieves and clears all messages for a device
-// Called when Dev B comes online: lv sync
-func (s *Store) GetMessages(deviceID string) []*PendingMessage {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	msgs := s.messages[deviceID]
-	if msgs == nil {
-		return []*PendingMessage{} // return empty slice not nil
-	}
-
-	// Clear messages after delivery
-	// Like a mailbox — once you collect your mail, box is empty
-	delete(s.messages, deviceID)
-	return msgs
-}
-
-// Cleanup removes expired invites and messages
-// Run periodically to keep memory usage low
+// Cleanup removes expired messages
 func (s *Store) Cleanup() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	now := time.Now()
-
-	// Remove expired invites
-	for code, session := range s.invites {
-		if now.After(session.ExpiresAt) {
-			delete(s.invites, code)
-		}
-	}
-
-	// Remove expired messages
 	for deviceID, msgs := range s.messages {
 		var valid []*PendingMessage
 		for _, msg := range msgs {
@@ -171,162 +127,397 @@ func (s *Store) Cleanup() {
 	}
 }
 
-// ===== MAIN SERVER =====
+// ===== MAIN =====
 
 func main() {
-	// Create store
 	store := NewStore()
 
-	// Start cleanup goroutine
-	// Runs every 5 minutes in background
-	// Like: setInterval(() => cleanup(), 5 * 60 * 1000) in JS
+	// Cleanup goroutine
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
-		for range ticker.C { // range over channel = wait for each tick
+		for range ticker.C {
 			store.Cleanup()
-			log.Println("🧹 Cleaned up expired sessions")
+			log.Println("🧹 Cleaned up expired messages")
 		}
 	}()
 
-	// Create Fiber app
-	// Fiber is like Express.js but for Go
 	app := fiber.New(fiber.Config{
-		// Custom error handler
-		// Returns JSON errors instead of HTML
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 		},
 	})
 
-	// Middleware
-	// cors allows requests from any origin (CLI tool needs this)
 	app.Use(cors.New())
-	// logger prints each request to console
 	app.Use(logger.New(logger.Config{
 		Format: "[${time}] ${method} ${path} → ${status}\n",
 	}))
 
 	// ===== ROUTES =====
 
-	// Health check — used to verify server is running
-	// lv will ping this before any operation
+	// Health check
 	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"status":  "ok",
-			"version": "1.0.0",
+			"version": "2.0.0",
 			"time":    time.Now(),
 		})
 	})
 
-	// POST /invite — Dev A creates an invite
-	// Body: { code, device_id, public_key, ip_hint }
-	// Response: { success: true }
-	app.Post("/invite", func(c *fiber.Ctx) error {
-		var session InviteSession
+	// ── Vault Routes ────────────────────────────────────────
 
-		// Parse JSON body
-		// Like: const body = req.body in Express
-		if err := c.BodyParser(&session); err != nil {
-			return c.Status(400).JSON(fiber.Map{
-				"error": "invalid request body",
+	// POST /vaults — Register new vault (called by lv init)
+	app.Post("/vaults", func(c *fiber.Ctx) error {
+		var body struct {
+			OwnerID         string `json:"owner_id"`
+			OwnerName       string `json:"owner_name"`
+			PublicKey       []byte `json:"public_key"`
+			X25519PublicKey []byte `json:"x25519_public_key"`
+		}
+
+		if err := c.BodyParser(&body); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+		}
+
+		store.mu.Lock()
+		defer store.mu.Unlock()
+
+		// Generate vault ID
+		vaultID := generateID("vault_", 8)
+
+		// Create vault with owner as first peer
+		vault := &Vault{
+			ID:        vaultID,
+			OwnerID:   body.OwnerID,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Peers: []Peer{
+				{
+					DeviceID:        body.OwnerID,
+					DeviceName:      body.OwnerName,
+					PublicKey:       body.PublicKey,
+					X25519PublicKey: body.X25519PublicKey,
+					JoinedAt:        time.Now(),
+				},
+			},
+		}
+
+		store.vaults[vaultID] = vault
+
+		log.Printf("🔐 Vault created: %s by %s", vaultID, body.OwnerID)
+
+		return c.JSON(fiber.Map{
+			"vault_id":   vaultID,
+			"created_at": vault.CreatedAt,
+		})
+	})
+
+	// GET /vaults/:id — Get vault info and peer list
+	app.Get("/vaults/:id", func(c *fiber.Ctx) error {
+		vault, ok := store.GetVault(c.Params("id"))
+		if !ok {
+			return c.Status(404).JSON(fiber.Map{"error": "vault not found"})
+		}
+
+		return c.JSON(fiber.Map{
+			"id":         vault.ID,
+			"peers":      vault.Peers,
+			"updated_at": vault.UpdatedAt,
+		})
+	})
+
+	// PUT /vaults/:id/snapshot — Upload encrypted vault snapshot
+	// Called by lv push
+	app.Put("/vaults/:id/snapshot", func(c *fiber.Ctx) error {
+		var body struct {
+			DeviceID string `json:"device_id"`
+			Snapshot []byte `json:"snapshot"` // encrypted blob
+		}
+
+		if err := c.BodyParser(&body); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+		}
+
+		store.mu.Lock()
+		defer store.mu.Unlock()
+
+		vault, ok := store.vaults[c.Params("id")]
+		if !ok {
+			return c.Status(404).JSON(fiber.Map{"error": "vault not found"})
+		}
+
+		// Verify device is a peer
+		isPeer := false
+		for _, p := range vault.Peers {
+			if p.DeviceID == body.DeviceID {
+				isPeer = true
+				break
+			}
+		}
+
+		if !isPeer {
+			return c.Status(403).JSON(fiber.Map{
+				"error": "device is not a vault peer",
 			})
 		}
 
-		// Validate required fields
-		if session.Code == "" || session.DeviceID == "" {
-			return c.Status(400).JSON(fiber.Map{
-				"error": "code and device_id are required",
-			})
-		}
+		// Update snapshot
+		vault.Snapshot = body.Snapshot
+		vault.UpdatedAt = time.Now()
 
-		// Set timestamps
-		session.CreatedAt = time.Now()
-		session.ExpiresAt = time.Now().Add(10 * time.Minute) // expires in 10 min
-
-		// Get real IP from request
-		// c.IP() returns client IP address
-		// Like: req.ip in Express
-		if session.IPHint == "" {
-			session.IPHint = c.IP()
-		}
-
-		store.AddInvite(&session)
-
-		log.Printf("📨 Invite created: %s (device: %s)", session.Code, session.DeviceID)
+		log.Printf("📤 Snapshot updated: %s by %s",
+			c.Params("id"), body.DeviceID)
 
 		return c.JSON(fiber.Map{
 			"success":    true,
-			"expires_at": session.ExpiresAt,
+			"updated_at": vault.UpdatedAt,
 		})
 	})
 
-	// GET /invite/:code — Dev B looks up an invite code
-	// Response: { device_id, public_key, ip_hint }
-	app.Get("/invite/:code", func(c *fiber.Ctx) error {
-		// c.Params("code") gets URL parameter
-		// Like: req.params.code in Express
-		code := c.Params("code")
+	// GET /vaults/:id/snapshot — Download latest snapshot
+	app.Get("/vaults/:id/snapshot", func(c *fiber.Ctx) error {
+		// Get requesting device ID from header
+		requestingDevice := c.Get("X-Device-ID")
 
-		session, exists := store.GetInvite(code)
-		if !exists {
+		vault, ok := store.GetVault(c.Params("id"))
+		if !ok {
 			return c.Status(404).JSON(fiber.Map{
-				"error": "invite code not found or expired",
+				"error": "vault not found",
 			})
 		}
 
-		log.Printf("🤝 Invite redeemed: %s", code)
-
-		// Return peer info to Dev B
-		return c.JSON(PeerInfo{
-			DeviceID:  session.DeviceID,
-			PublicKey: session.PublicKey,
-			IPHint:    session.IPHint,
-		})
-	})
-
-	// POST /messages — Dev A sends encrypted message for offline Dev B
-	// Body: { for_device_id, from_device_id, payload }
-	// Payload is encrypted — server cannot read it
-	app.Post("/messages", func(c *fiber.Ctx) error {
-		var msg PendingMessage
-
-		if err := c.BodyParser(&msg); err != nil {
-			return c.Status(400).JSON(fiber.Map{
-				"error": "invalid request body",
-			})
+		// Verify requester is still a peer
+		if requestingDevice != "" {
+			isPeer := false
+			for _, p := range vault.Peers {
+				if p.DeviceID == requestingDevice {
+					isPeer = true
+					break
+				}
+			}
+			if !isPeer {
+				return c.Status(403).JSON(fiber.Map{
+					"error": "access revoked",
+				})
+			}
 		}
 
-		if msg.ForDeviceID == "" || msg.Payload == nil {
-			return c.Status(400).JSON(fiber.Map{
-				"error": "for_device_id and payload are required",
+		if vault.Snapshot == nil {
+			return c.Status(404).JSON(fiber.Map{
+				"error": "no snapshot yet",
 			})
 		}
-
-		// Generate message ID
-		msg.ID = fmt.Sprintf("msg_%d", time.Now().UnixNano())
-		msg.CreatedAt = time.Now()
-		msg.ExpiresAt = time.Now().Add(48 * time.Hour) // expires in 48 hours
-
-		store.AddMessage(&msg)
-
-		log.Printf("📬 Message queued for device: %s", msg.ForDeviceID)
 
 		return c.JSON(fiber.Map{
-			"success": true,
-			"id":      msg.ID,
+			"snapshot":   vault.Snapshot,
+			"updated_at": vault.UpdatedAt,
+		})
+	})
+	// ── Token Routes ─────────────────────────────────────────
+
+	// POST /vaults/:id/tokens — Generate join token
+	// Called by lv invite
+	app.Post("/vaults/:id/tokens", func(c *fiber.Ctx) error {
+		var body struct {
+			DeviceID  string     `json:"device_id"`  // must be owner
+			Name      string     `json:"name"`       // e.g. "Ahmed"
+			ExpiresAt *time.Time `json:"expires_at"` // nil = never
+		}
+
+		if err := c.BodyParser(&body); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+		}
+
+		store.mu.Lock()
+		defer store.mu.Unlock()
+
+		vault, ok := store.vaults[c.Params("id")]
+		if !ok {
+			return c.Status(404).JSON(fiber.Map{"error": "vault not found"})
+		}
+
+		// Generate token
+		tokenID := generateID("lv_join_", 16)
+
+		token := Token{
+			ID:        tokenID,
+			Name:      body.Name,
+			CreatedAt: time.Now(),
+			ExpiresAt: body.ExpiresAt,
+			Revoked:   false,
+		}
+
+		vault.Tokens = append(vault.Tokens, token)
+
+		log.Printf("🎟️  Token created for %s in vault %s",
+			body.Name, c.Params("id"))
+
+		return c.JSON(fiber.Map{
+			"id":         tokenID,
+			"name":       body.Name,
+			"created_at": time.Now(),
+			"expires_at": body.ExpiresAt,
 		})
 	})
 
-	// GET /messages/:deviceID — Dev B picks up pending messages
-	// Called when Dev B comes online (lv sync)
+	// GET /vaults/:id/tokens — List all tokens
+	// Called by lv invite --list
+	app.Get("/vaults/:id/tokens", func(c *fiber.Ctx) error {
+		vault, ok := store.GetVault(c.Params("id"))
+		if !ok {
+			return c.Status(404).JSON(fiber.Map{"error": "vault not found"})
+		}
+
+		// Return only active tokens
+		var active []Token
+		for _, t := range vault.Tokens {
+			if !t.Revoked {
+				active = append(active, t)
+			}
+		}
+
+		return c.JSON(fiber.Map{"tokens": active})
+	})
+
+	// DELETE /vaults/:id/tokens/:tokenID — Revoke token
+	// Called by lv invite --revoke TOKEN
+	app.Delete("/vaults/:id/tokens/:tokenID", func(c *fiber.Ctx) error {
+		store.mu.Lock()
+		defer store.mu.Unlock()
+
+		vault, ok := store.vaults[c.Params("id")]
+		if !ok {
+			return c.Status(404).JSON(fiber.Map{"error": "vault not found"})
+		}
+
+		tokenID := c.Params("tokenID")
+		found := false
+		for i, t := range vault.Tokens {
+			if t.ID == tokenID {
+				vault.Tokens[i].Revoked = true
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return c.Status(404).JSON(fiber.Map{"error": "token not found"})
+		}
+
+		log.Printf("🚫 Token revoked: %s", tokenID)
+
+		return c.JSON(fiber.Map{"success": true})
+	})
+
+	// ── Join Route ───────────────────────────────────────────
+
+	// POST /join — Join vault using token
+	// Called by lv join TOKEN
+	app.Post("/join", func(c *fiber.Ctx) error {
+		var body struct {
+			Token           string `json:"token"`
+			DeviceID        string `json:"device_id"`
+			DeviceName      string `json:"device_name"`
+			PublicKey       []byte `json:"public_key"`
+			X25519PublicKey []byte `json:"x25519_public_key"`
+		}
+
+		if err := c.BodyParser(&body); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+		}
+
+		store.mu.Lock()
+		defer store.mu.Unlock()
+
+		// Find vault by token
+		var targetVault *Vault
+		for _, vault := range store.vaults {
+			for _, t := range vault.Tokens {
+				if t.ID == body.Token && !t.Revoked {
+					if t.ExpiresAt == nil || time.Now().Before(*t.ExpiresAt) {
+						targetVault = vault
+						break
+					}
+				}
+			}
+			if targetVault != nil {
+				break
+			}
+		}
+
+		if targetVault == nil {
+			return c.Status(404).JSON(fiber.Map{
+				"error": "invalid or expired token",
+			})
+		}
+
+		// Check if already a peer
+		for _, p := range targetVault.Peers {
+			if p.DeviceID == body.DeviceID {
+				// Already joined — return vault info
+				return c.JSON(fiber.Map{
+					"vault_id": targetVault.ID,
+					"snapshot": targetVault.Snapshot,
+					"peers":    targetVault.Peers,
+					"message":  "already a peer",
+				})
+			}
+		}
+
+		// Add as new peer
+		newPeer := Peer{
+			DeviceID:        body.DeviceID,
+			DeviceName:      body.DeviceName,
+			PublicKey:       body.PublicKey,
+			X25519PublicKey: body.X25519PublicKey,
+			JoinedAt:        time.Now(),
+		}
+
+		targetVault.Peers = append(targetVault.Peers, newPeer)
+		targetVault.UpdatedAt = time.Now()
+
+		log.Printf("👋 %s joined vault %s",
+			body.DeviceName, targetVault.ID)
+
+		// Return vault ID + snapshot + ALL peers
+		// New joiner gets everything in one request
+		return c.JSON(fiber.Map{
+			"vault_id": targetVault.ID,
+			"snapshot": targetVault.Snapshot,
+			"peers":    targetVault.Peers,
+		})
+	})
+
+	// ── Message Routes (for offline delivery) ────────────────
+
+	// POST /messages — Store message for offline peer
+	app.Post("/messages", func(c *fiber.Ctx) error {
+		var msg PendingMessage
+		if err := c.BodyParser(&msg); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid body"})
+		}
+
+		msg.ID = generateID("msg_", 8)
+		msg.CreatedAt = time.Now()
+		msg.ExpiresAt = time.Now().Add(48 * time.Hour)
+
+		store.mu.Lock()
+		store.messages[msg.ForDeviceID] = append(
+			store.messages[msg.ForDeviceID], &msg)
+		store.mu.Unlock()
+
+		return c.JSON(fiber.Map{"id": msg.ID, "success": true})
+	})
+
+	// GET /messages/:deviceID — Get pending messages
 	app.Get("/messages/:deviceID", func(c *fiber.Ctx) error {
-		deviceID := c.Params("deviceID")
+		store.mu.Lock()
+		msgs := store.messages[c.Params("deviceID")]
+		delete(store.messages, c.Params("deviceID"))
+		store.mu.Unlock()
 
-		msgs := store.GetMessages(deviceID)
-
-		log.Printf("📮 Delivered %d messages to device: %s", len(msgs), deviceID)
+		if msgs == nil {
+			msgs = []*PendingMessage{}
+		}
 
 		return c.JSON(fiber.Map{
 			"messages": msgs,
@@ -334,31 +525,50 @@ func main() {
 		})
 	})
 
-	// GET /peers/:deviceID — check if a device is online
-	// Used for real-time sync when both peers are online
-	// For now returns basic info — will expand in Step 6 (daemon)
-	app.Get("/peers/:deviceID", func(c *fiber.Ctx) error {
-		// For now just return online status
-		// We will expand this when we build the daemon
-		return c.JSON(fiber.Map{
-			"device_id": c.Params("deviceID"),
-			"online":    false, // daemon will update this
-		})
+	// DELETE /vaults/:id/peers/:deviceID — Remove peer from vault
+	app.Delete("/vaults/:id/peers/:deviceID", func(c *fiber.Ctx) error {
+		store.mu.Lock()
+		defer store.mu.Unlock()
+
+		vault, ok := store.vaults[c.Params("id")]
+		if !ok {
+			return c.Status(404).JSON(fiber.Map{
+				"error": "vault not found",
+			})
+		}
+
+		deviceID := c.Params("deviceID")
+		found := false
+		var remaining []Peer
+
+		for _, p := range vault.Peers {
+			if p.DeviceID == deviceID {
+				found = true
+				continue // skip — removes them
+			}
+			remaining = append(remaining, p)
+		}
+
+		if !found {
+			return c.Status(404).JSON(fiber.Map{
+				"error": "peer not found",
+			})
+		}
+
+		vault.Peers = remaining
+		vault.UpdatedAt = time.Now()
+
+		log.Printf("🚫 Peer removed from vault %s: %s",
+			c.Params("id"), deviceID)
+
+		return c.JSON(fiber.Map{"success": true})
 	})
 
-	// Get port from environment variable
-	// Like: process.env.PORT in Node.js
-	// Default to 8080 if not set
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	log.Printf("🚀 LocalVault Signaling Server running on port %s", port)
-
-	// Start server
-	// Like: app.listen(port) in Express
-	if err := app.Listen(":" + port); err != nil {
-		log.Fatal(err)
-	}
+	log.Printf("🚀 LocalVault Server v2.0 running on port %s", port)
+	app.Listen(":" + port)
 }
