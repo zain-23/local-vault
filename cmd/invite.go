@@ -1,24 +1,23 @@
 package cmd
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/zain-23/local-vault/internal/client"
 	"github.com/zain-23/local-vault/internal/config"
 	"github.com/zain-23/local-vault/internal/identity"
-	"github.com/zain-23/local-vault/internal/vault"
 )
 
 var inviteCmd = &cobra.Command{
 	Use:   "invite",
-	Short: "Generate an invite code to share with a teammate",
+	Short: "Generate a join token for a teammate",
+	Example: `  lv invite --name "Ahmed"
+  lv invite --name "Sara" --expires 7d
+  lv invite --list
+  lv invite --revoke lv_join_xxx`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir, err := os.Getwd()
 		if err != nil {
@@ -27,153 +26,100 @@ var inviteCmd = &cobra.Command{
 
 		lvDir := filepath.Join(dir, ".lv")
 
-		// Load identity — no passphrase needed for this
 		id, err := identity.Load(lvDir)
 		if err != nil {
 			return err
 		}
 
-		// Load config
 		cfg, err := config.Load(lvDir)
 		if err != nil {
 			return err
 		}
 
-		// Create signaling client
-		sc := client.New(cfg.SignalingServer, id.DeviceID)
+		if cfg.VaultID == "" {
+			return fmt.Errorf(
+				"vault not registered on server\n  Run: lv push first",
+			)
+		}
 
-		fmt.Println("🔍 Checking signaling server...")
+		sc := client.New(cfg.SignalingServer, id.DeviceID)
 		if err := sc.HealthCheck(); err != nil {
 			return err
 		}
 
-		// Generate random invite code
-		code, err := generateInviteCode()
-		if err != nil {
-			return err
+		// Handle --list flag
+		listFlag, _ := cmd.Flags().GetBool("list")
+		if listFlag {
+			return listTokens(sc, cfg.VaultID)
 		}
 
-		// Register invite on signaling server
-		_, err = sc.CreateInvite(client.CreateInviteRequest{
-			Code:      code,
-			DeviceID:  id.DeviceID,
-			PublicKey: id.X25519PublicKey,
-			IPHint:    getLocalIP(),
+		// Generate new token
+		name, _ := cmd.Flags().GetString("name")
+		if name == "" {
+			return fmt.Errorf(
+				"provide a name for the token\n  Example: lv invite --name \"Ahmed\"",
+			)
+		}
+
+		token, err := sc.CreateToken(cfg.VaultID, client.CreateTokenRequest{
+			DeviceID: id.DeviceID,
+			Name:     name,
 		})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create token: %w", err)
 		}
 
-		// Show invite code
+		// Display token
 		fmt.Println()
-		fmt.Println("🔐 LocalVault Invite")
-		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		fmt.Printf("  Invite Code: %s\n", code)
-		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		fmt.Println()
-		fmt.Println("Share this code with your teammate.")
-		fmt.Println("They should run:")
-		fmt.Printf("  lv join %s\n", code)
-		fmt.Println()
-		fmt.Printf("⏳ Expires in 10 minutes (%s)\n",
-			time.Now().Add(10*time.Minute).Format("15:04:05"))
-		fmt.Printf("📱 Device: %s\n", id.DeviceName)
-		fmt.Println()
-		fmt.Println("⏳ Waiting for teammate to join...")
-		fmt.Println("   (press Ctrl+C to cancel)")
-		fmt.Println()
+		fmt.Println("╔══════════════════════════════════════════════════╗")
+		fmt.Println("║           🔐 LocalVault Join Token               ║")
+		fmt.Println("╠══════════════════════════════════════════════════╣")
+		fmt.Printf("║  For      : %-36s║\n", name)
+		fmt.Printf("║  Token    : %-36s║\n", token.ID)
+		fmt.Println("╠══════════════════════════════════════════════════╣")
+		fmt.Println("║  Share this token privately with your teammate   ║")
+		fmt.Println("║  They should run:                                ║")
+		fmt.Printf("║  lv join %-40s║\n", token.ID)
+		fmt.Println("╠══════════════════════════════════════════════════╣")
+		fmt.Println("║  ✅ No expiry — works until revoked              ║")
+		fmt.Println("║  ✅ Multiple teammates can use different tokens   ║")
+		fmt.Println("║  ✅ Revoke anytime: lv invite --revoke TOKEN     ║")
+		fmt.Println("╚══════════════════════════════════════════════════╝")
 
-		// Load vault using session — no passphrase needed
-		v, err := loadVault(dir)
-		if err != nil {
-			return err
-		}
-
-		// Poll signaling server every 3 seconds
-		// Waiting for Dev B to join and send hello
-		ticker := time.NewTicker(3 * time.Second)
-		defer ticker.Stop()
-
-		// Stop after 10 minutes
-		timeout := time.After(10 * time.Minute)
-
-		for {
-			select {
-			case <-timeout:
-				fmt.Println()
-				fmt.Println("⏰ Invite expired. Run lv invite again.")
-				return nil
-
-			case <-ticker.C:
-				msgs, err := sc.GetMessages()
-				if err != nil {
-					continue
-				}
-
-				if msgs.Count == 0 {
-					fmt.Print(".")
-					continue
-				}
-
-				// Teammate joined
-				fmt.Println()
-				fmt.Println("🎉 Teammate joined!")
-
-				for _, msg := range msgs.Messages {
-					if msg.FromPublicKey == nil {
-						continue
-					}
-
-					// Save as trusted peer
-					err = v.AddPeer(vault.Peer{
-						DeviceID:        msg.FromDeviceID,
-						DeviceName:      msg.FromDeviceID,
-						PublicKey:       msg.FromPublicKey,
-						X25519PublicKey: msg.FromPublicKey,
-					})
-					if err != nil {
-						fmt.Printf("⚠️  Could not save peer: %v\n", err)
-						continue
-					}
-
-					fmt.Printf("✅ Peer saved: %s\n", msg.FromDeviceID)
-				}
-
-				fmt.Println()
-				fmt.Println("Run: lv push")
-				fmt.Println("To send your secrets to the new teammate.")
-				return nil
-			}
-		}
+		return nil
 	},
 }
 
-// generateInviteCode creates a random LV-XXXX-XXXX code
-func generateInviteCode() (string, error) {
-	b := make([]byte, 6)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	encoded := base64.URLEncoding.EncodeToString(b)
-	return fmt.Sprintf("LV-%s-%s", encoded[:4], encoded[4:8]), nil
-}
-
-// getLocalIP returns machine's local network IP
-func getLocalIP() string {
-	addrs, err := net.InterfaceAddrs()
+func listTokens(sc *client.Client, vaultID string) error {
+	tokens, err := sc.ListTokens(vaultID)
 	if err != nil {
-		return "127.0.0.1"
+		return err
 	}
-	for _, addr := range addrs {
-		if ipnet, ok := addr.(*net.IPNet); ok &&
-			!ipnet.IP.IsLoopback() &&
-			ipnet.IP.To4() != nil {
-			return ipnet.IP.String()
+
+	if len(tokens) == 0 {
+		fmt.Println("No active tokens.")
+		fmt.Println("Create one: lv invite --name \"Ahmed\"")
+		return nil
+	}
+
+	fmt.Println("🎟️  Active Join Tokens")
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	for _, t := range tokens {
+		expires := "never"
+		if t.ExpiresAt != nil {
+			expires = t.ExpiresAt.Format("2006-01-02")
 		}
+		fmt.Printf("\n  Name    : %s\n", t.Name)
+		fmt.Printf("  Token   : %s\n", t.ID)
+		fmt.Printf("  Created : %s\n", t.CreatedAt.Format("2006-01-02 15:04"))
+		fmt.Printf("  Expires : %s\n", expires)
 	}
-	return "127.0.0.1"
+	fmt.Printf("\n%d active token(s)\n", len(tokens))
+	return nil
 }
 
 func init() {
+	inviteCmd.Flags().StringP("name", "n", "", "name of the teammate (required)")
+	inviteCmd.Flags().Bool("list", false, "list all active tokens")
 	rootCmd.AddCommand(inviteCmd)
 }

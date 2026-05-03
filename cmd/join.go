@@ -14,12 +14,12 @@ import (
 )
 
 var joinCmd = &cobra.Command{
-	Use:     "join CODE",
-	Short:   "Join a teammate's vault using their invite code",
-	Example: "  lv join LV-A3F9-X2K1",
+	Use:     "join TOKEN",
+	Short:   "Join a vault using a join token",
+	Example: "  lv join lv_join_a3f9b2c1xxx",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		code := args[0]
+		token := args[0]
 
 		dir, err := os.Getwd()
 		if err != nil {
@@ -28,7 +28,7 @@ var joinCmd = &cobra.Command{
 
 		lvDir := filepath.Join(dir, ".lv")
 
-		// Load identity — no passphrase needed
+		// Load identity
 		id, err := identity.Load(lvDir)
 		if err != nil {
 			return err
@@ -40,117 +40,123 @@ var joinCmd = &cobra.Command{
 			return err
 		}
 
-		// Create signaling client
-		sc := client.New(cfg.SignalingServer, id.DeviceID)
-
-		fmt.Println("🔍 Looking up invite code...")
-		if err := sc.HealthCheck(); err != nil {
-			return err
-		}
-
-		// Look up invite — returns Dev A's device ID and X25519 public key
-		peer, err := sc.LookupInvite(code)
-		if err != nil {
-			return err
-		}
-
-		fmt.Printf("✅ Found peer: %s\n", peer.DeviceID)
-		fmt.Println("🤝 Exchanging keys...")
-
-		// Load vault using session — no passphrase needed
+		// Load vault
 		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}
 
-		// Save Dev A as trusted peer
-		err = v.AddPeer(vault.Peer{
-			DeviceID:        peer.DeviceID,
-			DeviceName:      peer.DeviceID,
-			PublicKey:       peer.PublicKey,
-			X25519PublicKey: peer.PublicKey,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to save peer: %w", err)
-		}
+		// Connect to server
+		sc := client.New(cfg.SignalingServer, id.DeviceID)
 
-		fmt.Println("📤 Sending your public key to peer...")
-
-		// Send hello to Dev A's mailbox with our X25519 public key
-		err = sc.SendMessage(client.SendMessageRequest{
-			ForDeviceID:   peer.DeviceID,
-			FromDeviceID:  id.DeviceID,
-			FromPublicKey: id.X25519PublicKey,
-			Payload:       []byte("hello"),
-		})
-		if err != nil {
-			return fmt.Errorf("failed to notify peer: %w", err)
-		}
-
-		fmt.Println("📬 Checking for vault data...")
-
-		// Check if Dev A already sent us secrets
-		msgs, err := sc.GetMessages()
-		if err != nil {
+		fmt.Println("🔍 Verifying token...")
+		if err := sc.HealthCheck(); err != nil {
 			return err
 		}
 
-		if msgs.Count == 0 {
+		// Join vault using token
+		// Server returns: vault ID + snapshot + all current peers
+		resp, err := sc.JoinVault(client.JoinRequest{
+			Token:           token,
+			DeviceID:        id.DeviceID,
+			DeviceName:      id.DeviceName,
+			PublicKey:       id.PublicKey,
+			X25519PublicKey: id.X25519PublicKey,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to join: %w", err)
+		}
+
+		fmt.Printf("✅ Joined vault: %s\n", resp.VaultID)
+
+		// Save vault ID to config
+		cfg.VaultID = resp.VaultID
+		cfg.DeviceID = id.DeviceID
+		config.Save(lvDir, cfg)
+
+		// Save ALL peers from server immediately
+		// This establishes full mesh from day one
+		// No need to wait for lv push from team lead
+		fmt.Printf("🔗 Discovering %d peer(s)...\n", len(resp.Peers))
+		for _, peer := range resp.Peers {
+			// Skip ourselves
+			if peer.DeviceID == id.DeviceID {
+				continue
+			}
+
+			err = v.AddPeer(vault.Peer{
+				DeviceID:        peer.DeviceID,
+				DeviceName:      peer.DeviceName,
+				PublicKey:       peer.PublicKey,
+				X25519PublicKey: peer.X25519PublicKey,
+			})
+			if err == nil {
+				fmt.Printf("  ✅ Peer saved: %s\n", peer.DeviceName)
+			}
+		}
+
+		// Decrypt and merge snapshot if available
+		if resp.Snapshot == nil {
 			fmt.Println()
-			fmt.Println("⏳ Your key was sent to peer.")
-			fmt.Println("   Ask them to run: lv push")
-			fmt.Println("   Then run: lv sync")
+			fmt.Println("⚠️  No secrets pushed yet.")
+			fmt.Println("   Ask team lead to run: lv push")
+			fmt.Println()
+			fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+			fmt.Printf("✅ Joined vault: %s\n", resp.VaultID)
+			fmt.Printf("👥 %d peer(s) in vault\n", len(resp.Peers))
+			fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 			return nil
 		}
 
-		// Process messages already waiting
-		totalMerged := 0
-		for _, msg := range msgs.Messages {
-			// Skip hello messages
-			if string(msg.Payload) == "hello" {
-				continue
-			}
+		// Snapshot exists — decrypt it
+		// Snapshot is encrypted with vault's shared key
+		// We need to find someone's key to decrypt it
+		// For now use first available peer's key
+		fmt.Println("📦 Downloading vault snapshot...")
 
-			// Decrypt using our X25519 private + peer's X25519 public
+		// Find owner peer for decryption
+		var ownerPeer *client.Peer
+		for _, peer := range resp.Peers {
+			if peer.DeviceID != id.DeviceID {
+				p := peer
+				ownerPeer = &p
+				break
+			}
+		}
+
+		if ownerPeer != nil {
 			rawSecrets, err := internalsync.DecryptFromPeer(
-				msg.Payload,
+				resp.Snapshot,
 				id.X25519PrivateKey,
-				peer.PublicKey,
+				ownerPeer.X25519PublicKey,
 			)
-			if err != nil {
-				fmt.Printf("⚠️  Could not decrypt: %v\n", err)
-				continue
-			}
-
-			// Convert to vault.SecretEntry
-			secrets := make([]vault.SecretEntry, len(rawSecrets))
-			for i, s := range rawSecrets {
-				secrets[i] = vault.SecretEntry{
-					Key:       s.Key,
-					Value:     s.Value,
-					Env:       s.Env,
-					UpdatedAt: s.UpdatedAt,
+			if err == nil && len(rawSecrets) > 0 {
+				secrets := make([]vault.SecretEntry, len(rawSecrets))
+				for i, s := range rawSecrets {
+					secrets[i] = vault.SecretEntry{
+						Key:       s.Key,
+						Value:     s.Value,
+						Env:       s.Env,
+						UpdatedAt: s.UpdatedAt,
+					}
 				}
-			}
 
-			count, err := v.MergeSecrets(secrets)
-			if err != nil {
-				return err
+				count, err := v.MergeSecrets(secrets)
+				if err != nil {
+					return err
+				}
+
+				fmt.Printf("✅ Received %d secret(s)\n", count)
 			}
-			totalMerged += count
 		}
 
 		fmt.Println()
 		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		fmt.Printf("✅ Connected to peer: %s\n", peer.DeviceID)
-		if totalMerged > 0 {
-			fmt.Printf("📦 Synced %d secret(s)\n", totalMerged)
-		} else {
-			fmt.Println("📦 No secrets yet — ask peer to run: lv push")
-		}
+		fmt.Printf("✅ Joined vault: %s\n", resp.VaultID)
+		fmt.Printf("👥 %d peer(s) in vault\n", len(resp.Peers))
 		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 		fmt.Println()
-		fmt.Println("Run: lv sync   to pull secrets anytime")
+		fmt.Println("Run: lv inject -- npm run dev")
 
 		return nil
 	},

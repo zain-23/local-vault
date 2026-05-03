@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,7 +17,7 @@ import (
 
 var syncCmd = &cobra.Command{
 	Use:   "sync",
-	Short: "Pull latest secrets from peers",
+	Short: "Pull latest secrets from server and peers",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir, err := os.Getwd()
 		if err != nil {
@@ -24,34 +26,61 @@ var syncCmd = &cobra.Command{
 
 		lvDir := filepath.Join(dir, ".lv")
 
-		// Load identity — no passphrase needed
 		id, err := identity.Load(lvDir)
 		if err != nil {
 			return err
 		}
 
-		// Load config
 		cfg, err := config.Load(lvDir)
 		if err != nil {
 			return err
 		}
 
-		// Load vault using session — no passphrase needed
 		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}
 
-		// Create signaling client
 		sc := client.New(cfg.SignalingServer, id.DeviceID)
 
-		fmt.Println("🔄 Syncing with peers...")
+		fmt.Println("🔄 Syncing...")
 
 		if err := sc.HealthCheck(); err != nil {
 			return err
 		}
 
-		// Check mailbox for pending messages
+		totalMerged := 0
+
+		// ── Step 1: Sync peer list from server ─────────────────
+		// Always get latest peers from server
+		// This auto-discovers anyone who joined
+		if cfg.VaultID != "" {
+			serverPeers, err := sc.GetVaultPeers(cfg.VaultID)
+			if err == nil {
+				newPeers := 0
+				for _, sp := range serverPeers {
+					if sp.DeviceID == id.DeviceID {
+						continue // skip ourselves
+					}
+					_, found := v.GetPeer(sp.DeviceID)
+					if !found {
+						v.AddPeer(vault.Peer{
+							DeviceID:        sp.DeviceID,
+							DeviceName:      sp.DeviceName,
+							PublicKey:       sp.PublicKey,
+							X25519PublicKey: sp.X25519PublicKey,
+						})
+						newPeers++
+						fmt.Printf("  🔗 New peer: %s\n", sp.DeviceName)
+					}
+				}
+				if newPeers > 0 {
+					fmt.Printf("  ✅ Added %d new peer(s)\n", newPeers)
+				}
+			}
+		}
+
+		// ── Step 2: Check mailbox for messages ─────────────────
 		msgs, err := sc.GetMessages()
 		if err != nil {
 			return err
@@ -62,56 +91,66 @@ var syncCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Printf("📬 Found %d update(s)\n", msgs.Count)
+		fmt.Printf("📬 Found %d message(s)\n", msgs.Count)
 
-		totalMerged := 0
 		for _, msg := range msgs.Messages {
 			// Find sender in trusted peers
 			peer, found := v.GetPeer(msg.FromDeviceID)
 			if !found {
-				// Unknown peer — save if they sent public key
 				if msg.FromPublicKey != nil {
-					err = v.AddPeer(vault.Peer{
+					v.AddPeer(vault.Peer{
 						DeviceID:        msg.FromDeviceID,
 						DeviceName:      msg.FromDeviceID,
 						PublicKey:       msg.FromPublicKey,
 						X25519PublicKey: msg.FromPublicKey,
 					})
-					if err != nil {
-						fmt.Printf("⚠️  Could not save peer: %v\n", err)
-						continue
-					}
 					peer, _ = v.GetPeer(msg.FromDeviceID)
-					fmt.Printf("✅ New peer discovered: %s\n", msg.FromDeviceID)
+					fmt.Printf("  ✅ New peer: %s\n", msg.FromDeviceID[:8]+"...")
 				} else {
-					fmt.Printf("⚠️  Message from unknown peer %s — skipping\n",
-						msg.FromDeviceID)
 					continue
 				}
 			}
 
-			// Skip hello messages — peer discovery only
+			// Handle hello messages
 			if string(msg.Payload) == "hello" {
-				fmt.Printf("👋 Hello from %s — peer saved\n", msg.FromDeviceID)
+				fmt.Printf("  👋 Hello from %s\n", peer.DeviceName)
 				continue
 			}
 
-			// Check peer has X25519 key
+			// Handle peer list messages — full mesh
+			if bytes.HasPrefix(msg.Payload, []byte("peers:")) {
+				peerJSON := msg.Payload[6:]
+				var newPeers []vault.Peer
+				if err := json.Unmarshal(peerJSON, &newPeers); err != nil {
+					continue
+				}
+				discovered := 0
+				for _, np := range newPeers {
+					_, exists := v.GetPeer(np.DeviceID)
+					if !exists {
+						v.AddPeer(np)
+						discovered++
+						fmt.Printf("  🔗 Discovered: %s\n", np.DeviceName)
+					}
+				}
+				if discovered > 0 {
+					fmt.Printf("  ✅ Added %d peer(s) to mesh\n", discovered)
+				}
+				continue
+			}
+
+			// Handle secrets payload
 			if peer.X25519PublicKey == nil {
-				fmt.Printf("⚠️  No encryption key for peer %s — skipping\n",
-					msg.FromDeviceID)
 				continue
 			}
 
-			// Decrypt using our X25519 private + sender's X25519 public
 			rawSecrets, err := internalsync.DecryptFromPeer(
 				msg.Payload,
 				id.X25519PrivateKey,
 				peer.X25519PublicKey,
 			)
 			if err != nil {
-				fmt.Printf("⚠️  Could not decrypt message from %s: %v\n",
-					msg.FromDeviceID, err)
+				fmt.Printf("  ⚠️  Could not decrypt from %s\n", peer.DeviceName)
 				continue
 			}
 
@@ -119,7 +158,6 @@ var syncCmd = &cobra.Command{
 				continue
 			}
 
-			// Convert sync.SecretEntry to vault.SecretEntry
 			secrets := make([]vault.SecretEntry, len(rawSecrets))
 			for i, s := range rawSecrets {
 				secrets[i] = vault.SecretEntry{
@@ -130,20 +168,19 @@ var syncCmd = &cobra.Command{
 				}
 			}
 
-			// Merge into vault — newer timestamp wins
 			count, err := v.MergeSecrets(secrets)
 			if err != nil {
 				return err
 			}
 
 			totalMerged += count
-			fmt.Printf("  ✅ Received %d secret(s) from %s\n",
-				count, msg.FromDeviceID)
+			fmt.Printf("  ✅ %d secret(s) from %s\n",
+				count, peer.DeviceName)
 		}
 
 		fmt.Println()
 		if totalMerged > 0 {
-			fmt.Printf("✅ Synced %d secret(s) total\n", totalMerged)
+			fmt.Printf("✅ Synced %d secret(s)\n", totalMerged)
 		} else {
 			fmt.Println("✅ No new changes")
 		}
