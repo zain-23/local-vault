@@ -51,9 +51,10 @@ var listCmd = &cobra.Command{
 			}
 
 			fmt.Printf(
-				"  %s %s\n",
+				"  %s %s %s\n",
 				keyStyle.Render(s.Key),
 				envBadgeStyle.Render("["+env+"]"),
+				s.Value,
 			)
 		}
 
