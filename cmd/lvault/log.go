@@ -1,4 +1,4 @@
-package cmd
+package main
 
 // log.go handles "lv log"
 // Shows audit trail of all changes made to the vault

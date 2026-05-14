@@ -1,4 +1,4 @@
-package cmd
+package main
 
 // peers.go handles "lv peers"
 // Shows all trusted peers this vault is connected to

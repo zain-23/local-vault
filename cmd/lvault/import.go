@@ -1,4 +1,4 @@
-package cmd
+package main
 
 // import.go handles "lv import .env.local"
 // Reads an existing .env file and adds all secrets to vault

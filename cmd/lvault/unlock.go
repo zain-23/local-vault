@@ -1,4 +1,4 @@
-package cmd
+package main
 
 // unlock.go handles "lv unlock"
 // Asks passphrase once and caches in OS keychain

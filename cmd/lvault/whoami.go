@@ -1,4 +1,4 @@
-package cmd
+package main
 
 // whoami.go handles "lv whoami"
 // Shows this device's identity information

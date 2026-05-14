@@ -15,3 +15,5 @@ local-voult
 .lv/vault.json.enc
 .lv/identity.key
 .lv/identity.json
+
+.env

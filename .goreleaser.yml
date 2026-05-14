@@ -1,0 +1,75 @@
+version: 2
+
+project_name: lv
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: lv
+    binary: lv
+    main: ./cmd/lvault
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=0
+    # Inject server URL at build time
+    ldflags:
+      - -s -w
+      - -X github.com/zain-23/local-vault/internal/config.DefaultServer=https://localvault-signal.fly.dev
+
+  - id: lv-server
+    binary: lv-server
+    main: ./server
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+
+archives:
+  - id: lv
+    ids:
+      - lv
+    name_template: "lv_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - none*
+
+  - id: lv-server
+    ids:
+      - lv-server
+    name_template: "lv-server_{{ .Os }}_{{ .Arch }}"
+    files:
+      - none*
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: zain-23
+    name: local-vault
+  name_template: "v{{.Version}}"
+  draft: false

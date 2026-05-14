@@ -1,4 +1,4 @@
-package cmd
+package main
 
 // status.go handles "lv status"
 // Shows vault health — secrets count, peers, last sync

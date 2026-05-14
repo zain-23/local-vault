@@ -1,4 +1,4 @@
-package cmd
+package main
 
 // lock.go handles "lv lock"
 // Removes session from OS keychain immediately

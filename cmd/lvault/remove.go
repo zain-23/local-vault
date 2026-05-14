@@ -1,4 +1,4 @@
-package cmd
+package main
 
 // remove.go handles "lv remove KEY"
 // Deletes a secret from the vault permanently

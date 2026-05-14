@@ -17,8 +17,6 @@ import (
 )
 
 // ===== DATA STRUCTURES =====
-// In Go, structs are like JS objects with fixed shape (like TypeScript interfaces)
-
 // Secret represents one environment variable
 // The `json:"..."` tags tell Go how to name fields when converting to/from JSON
 // Same as: type Secret = { key: string, value: string, env: string }

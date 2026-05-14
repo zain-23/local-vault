@@ -1,4 +1,4 @@
-package cmd
+package main
 
 // get.go handles the "lv get KEY" command
 // Shows the actual value of a single secret

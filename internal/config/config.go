@@ -17,12 +17,14 @@ type Config struct {
 const configFile = "config.json"
 
 func Load(lvDir string) (*Config, error) {
+	serverURL := os.Getenv("SERVER_URL")
+
 	configPath := filepath.Join(lvDir, configFile)
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return &Config{
-				SignalingServer: DefaultServer,
+				SignalingServer: serverURL,
 			}, nil
 		}
 		return nil, err
