@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 )
 
-var DefaultServer = "http://localhost:8080"
-
 type Config struct {
 	SignalingServer string `json:"signaling_server"`
 	DeviceID        string `json:"device_id"`
@@ -17,12 +15,14 @@ type Config struct {
 const configFile = "config.json"
 
 func Load(lvDir string) (*Config, error) {
+	serverURL := os.Getenv("SERVER_URL") // default value
+	
 	configPath := filepath.Join(lvDir, configFile)
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return &Config{
-				SignalingServer: DefaultServer,
+				SignalingServer: serverURL,
 			}, nil
 		}
 		return nil, err
