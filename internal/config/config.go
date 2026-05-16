@@ -14,9 +14,16 @@ type Config struct {
 
 const configFile = "config.json"
 
+// defaultServerURL is used when SERVER_URL is unset and no address is
+// stored in config.json, so lv works out of the box for local dev.
+const defaultServerURL = "http://localhost:8080"
+
 func Load(lvDir string) (*Config, error) {
-	serverURL := os.Getenv("SERVER_URL") // default value
-	
+	serverURL := os.Getenv("SERVER_URL")
+	if serverURL == "" {
+		serverURL = defaultServerURL
+	}
+
 	configPath := filepath.Join(lvDir, configFile)
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -31,6 +38,11 @@ func Load(lvDir string) (*Config, error) {
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, err
+	}
+	// Heal configs written by older/broken inits that stored an empty
+	// server address.
+	if cfg.SignalingServer == "" {
+		cfg.SignalingServer = serverURL
 	}
 	return &cfg, nil
 }

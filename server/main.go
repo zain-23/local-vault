@@ -39,11 +39,13 @@ type Peer struct {
 // Token represents a join token
 // Like a GitHub personal access token
 type Token struct {
-	ID        string     `json:"id"`   // token value: lv_join_xxx
-	Name      string     `json:"name"` // human label e.g. "Ahmed"
-	CreatedAt time.Time  `json:"created_at"`
-	ExpiresAt *time.Time `json:"expires_at"` // nil = never expires
-	Revoked   bool       `json:"revoked"`
+	ID         string     `json:"id"`   // public half: lv_join_<id>
+	Name       string     `json:"name"` // human label e.g. "Ahmed"
+	CreatedAt  time.Time  `json:"created_at"`
+	ExpiresAt  *time.Time `json:"expires_at"`  // nil = never expires
+	Revoked    bool       `json:"revoked"`
+	WrappedDEK []byte     `json:"wrapped_dek"` // opaque: DEK wrapped with the token secret
+	Verifier   string     `json:"verifier"`    // one-way hash of the token secret
 }
 
 // PendingMessage for offline peer delivery
@@ -141,6 +143,20 @@ func main() {
 		}
 	}()
 
+	app := buildApp(store)
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("🚀 LocalVault Server v2.0 running on port %s", port)
+	app.Listen(":" + port)
+}
+
+// buildApp registers all routes on a fresh fiber app. Extracted from
+// main() so the HTTP handlers can be exercised in tests via app.Test().
+func buildApp(store *Store) *fiber.App {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return c.Status(500).JSON(fiber.Map{"error": err.Error()})
@@ -318,9 +334,11 @@ func main() {
 	// Called by lv invite
 	app.Post("/vaults/:id/tokens", func(c *fiber.Ctx) error {
 		var body struct {
-			DeviceID  string     `json:"device_id"`  // must be owner
-			Name      string     `json:"name"`       // e.g. "Ahmed"
-			ExpiresAt *time.Time `json:"expires_at"` // nil = never
+			DeviceID   string     `json:"device_id"`  // must be owner
+			Name       string     `json:"name"`       // e.g. "Ahmed"
+			ExpiresAt  *time.Time `json:"expires_at"` // nil = never
+			WrappedDEK []byte     `json:"wrapped_dek"`
+			Verifier   string     `json:"verifier"`
 		}
 
 		if err := c.BodyParser(&body); err != nil {
@@ -335,15 +353,17 @@ func main() {
 			return c.Status(404).JSON(fiber.Map{"error": "vault not found"})
 		}
 
-		// Generate token
+		// Generate token (public half only — the secret never reaches us)
 		tokenID := generateID("lv_join_", 16)
 
 		token := Token{
-			ID:        tokenID,
-			Name:      body.Name,
-			CreatedAt: time.Now(),
-			ExpiresAt: body.ExpiresAt,
-			Revoked:   false,
+			ID:         tokenID,
+			Name:       body.Name,
+			CreatedAt:  time.Now(),
+			ExpiresAt:  body.ExpiresAt,
+			Revoked:    false,
+			WrappedDEK: body.WrappedDEK,
+			Verifier:   body.Verifier,
 		}
 
 		vault.Tokens = append(vault.Tokens, token)
@@ -415,6 +435,7 @@ func main() {
 	app.Post("/join", func(c *fiber.Ctx) error {
 		var body struct {
 			Token           string `json:"token"`
+			Verifier        string `json:"verifier"`
 			DeviceID        string `json:"device_id"`
 			DeviceName      string `json:"device_name"`
 			PublicKey       []byte `json:"public_key"`
@@ -428,13 +449,16 @@ func main() {
 		store.mu.Lock()
 		defer store.mu.Unlock()
 
-		// Find vault by token
+		// Find vault + the specific token by its public id.
 		var targetVault *Vault
+		var matched *Token
 		for _, vault := range store.vaults {
-			for _, t := range vault.Tokens {
+			for i := range vault.Tokens {
+				t := &vault.Tokens[i]
 				if t.ID == body.Token && !t.Revoked {
 					if t.ExpiresAt == nil || time.Now().Before(*t.ExpiresAt) {
 						targetVault = vault
+						matched = t
 						break
 					}
 				}
@@ -444,7 +468,10 @@ func main() {
 			}
 		}
 
-		if targetVault == nil {
+		// A mismatched verifier is reported identically to an unknown
+		// token — no oracle for whether the id exists.
+		if targetVault == nil || matched == nil ||
+			(matched.Verifier != "" && matched.Verifier != body.Verifier) {
 			return c.Status(404).JSON(fiber.Map{
 				"error": "invalid or expired token",
 			})
@@ -455,10 +482,11 @@ func main() {
 			if p.DeviceID == body.DeviceID {
 				// Already joined — return vault info
 				return c.JSON(fiber.Map{
-					"vault_id": targetVault.ID,
-					"snapshot": targetVault.Snapshot,
-					"peers":    targetVault.Peers,
-					"message":  "already a peer",
+					"vault_id":    targetVault.ID,
+					"snapshot":    targetVault.Snapshot,
+					"peers":       targetVault.Peers,
+					"wrapped_dek": matched.WrappedDEK,
+					"message":     "already a peer",
 				})
 			}
 		}
@@ -478,12 +506,13 @@ func main() {
 		log.Printf("👋 %s joined vault %s",
 			body.DeviceName, targetVault.ID)
 
-		// Return vault ID + snapshot + ALL peers
+		// Return vault ID + snapshot + ALL peers + the wrapped DEK
 		// New joiner gets everything in one request
 		return c.JSON(fiber.Map{
-			"vault_id": targetVault.ID,
-			"snapshot": targetVault.Snapshot,
-			"peers":    targetVault.Peers,
+			"vault_id":    targetVault.ID,
+			"snapshot":    targetVault.Snapshot,
+			"peers":       targetVault.Peers,
+			"wrapped_dek": matched.WrappedDEK,
 		})
 	})
 
@@ -564,11 +593,5 @@ func main() {
 		return c.JSON(fiber.Map{"success": true})
 	})
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
-
-	log.Printf("🚀 LocalVault Server v2.0 running on port %s", port)
-	app.Listen(":" + port)
+	return app
 }

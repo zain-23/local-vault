@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/zain-23/local-vault/internal/client"
@@ -19,7 +21,19 @@ var joinCmd = &cobra.Command{
 	Example: "  lv join lv_join_a3f9b2c1xxx",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		token := args[0]
+		// Token = <public id>.<secret>. The secret never goes to the
+		// server in usable form; it unwraps the vault key locally.
+		parts := strings.SplitN(args[0], ".", 2)
+		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+			return fmt.Errorf(
+				"invalid token format — expected lv_join_<id>.<secret>",
+			)
+		}
+		tokenID := parts[0]
+		secret, err := base64.RawURLEncoding.DecodeString(parts[1])
+		if err != nil {
+			return fmt.Errorf("invalid token format — secret is not valid")
+		}
 
 		dir, err := os.Getwd()
 		if err != nil {
@@ -57,7 +71,8 @@ var joinCmd = &cobra.Command{
 		// Join vault using token
 		// Server returns: vault ID + snapshot + all current peers
 		resp, err := sc.JoinVault(client.JoinRequest{
-			Token:           token,
+			Token:           tokenID,
+			Verifier:        internalsync.DeriveVerifier(secret),
 			DeviceID:        id.DeviceID,
 			DeviceName:      id.DeviceName,
 			PublicKey:       id.PublicKey,
@@ -95,11 +110,35 @@ var joinCmd = &cobra.Command{
 			}
 		}
 
-		// Decrypt and merge snapshot if available
+		// Unwrap the shared vault key from the token secret.
+		if resp.WrappedDEK == nil {
+			fmt.Println()
+			fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+			fmt.Printf("✅ Joined vault: %s\n", resp.VaultID)
+			fmt.Printf("👥 %d peer(s) in vault\n", len(resp.Peers))
+			fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+			fmt.Println()
+			fmt.Println("⚠️  This invite predates encrypted-key support —")
+			fmt.Println("   you joined as a peer but cannot decrypt secrets.")
+			fmt.Println("   Ask the owner for a new invite: lv invite --name ...")
+			return nil
+		}
+
+		dek, err := internalsync.UnwrapKey(resp.WrappedDEK, secret)
+		if err != nil {
+			return fmt.Errorf(
+				"could not unwrap vault key — token may be from an older version; ask for a new invite",
+			)
+		}
+		if err := v.SetDataKey(dek); err != nil {
+			return err
+		}
+
+		// Decrypt and merge snapshot if available.
 		if resp.Snapshot == nil {
 			fmt.Println()
 			fmt.Println("⚠️  No secrets pushed yet.")
-			fmt.Println("   Ask team lead to run: lv push")
+			fmt.Println("   They will arrive on the next: lv sync")
 			fmt.Println()
 			fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 			fmt.Printf("✅ Joined vault: %s\n", resp.VaultID)
@@ -108,47 +147,28 @@ var joinCmd = &cobra.Command{
 			return nil
 		}
 
-		// Snapshot exists — decrypt it
-		// Snapshot is encrypted with vault's shared key
-		// We need to find someone's key to decrypt it
-		// For now use first available peer's key
 		fmt.Println("📦 Downloading vault snapshot...")
 
-		// Find owner peer for decryption
-		var ownerPeer *client.Peer
-		for _, peer := range resp.Peers {
-			if peer.DeviceID != id.DeviceID {
-				p := peer
-				ownerPeer = &p
-				break
+		rawSecrets, err := internalsync.DecryptSnapshot(resp.Snapshot, dek)
+		if err != nil {
+			return fmt.Errorf("snapshot decryption failed — vault key mismatch")
+		}
+
+		secrets := make([]vault.SecretEntry, len(rawSecrets))
+		for i, s := range rawSecrets {
+			secrets[i] = vault.SecretEntry{
+				Key:       s.Key,
+				Value:     s.Value,
+				Env:       s.Env,
+				UpdatedAt: s.UpdatedAt,
 			}
 		}
 
-		if ownerPeer != nil {
-			rawSecrets, err := internalsync.DecryptFromPeer(
-				resp.Snapshot,
-				id.X25519PrivateKey,
-				ownerPeer.X25519PublicKey,
-			)
-			if err == nil && len(rawSecrets) > 0 {
-				secrets := make([]vault.SecretEntry, len(rawSecrets))
-				for i, s := range rawSecrets {
-					secrets[i] = vault.SecretEntry{
-						Key:       s.Key,
-						Value:     s.Value,
-						Env:       s.Env,
-						UpdatedAt: s.UpdatedAt,
-					}
-				}
-
-				count, err := v.MergeSecrets(secrets)
-				if err != nil {
-					return err
-				}
-
-				fmt.Printf("✅ Received %d secret(s)\n", count)
-			}
+		count, err := v.MergeSecrets(secrets)
+		if err != nil {
+			return err
 		}
+		fmt.Printf("✅ Received %d secret(s)\n", count)
 
 		fmt.Println()
 		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

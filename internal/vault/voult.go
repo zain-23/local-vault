@@ -5,6 +5,7 @@ package vault
 // Think of this like your database layer
 
 import (
+	"crypto/rand"
 	"encoding/json" // like JSON.parse / JSON.stringify in JS
 	"errors"
 	"fmt"
@@ -55,6 +56,7 @@ type VaultFile struct {
 	PassHash  string       `json:"pass_hash"` // hashed passphrase for validation
 	Secrets   []Secret     `json:"secrets"`   // all the secrets
 	Peers     []Peer       `json:"peers"`     // trusted devices for sync
+	DataKey   []byte       `json:"data_key,omitempty"` // shared vault key for snapshot encryption
 	AuditLog  []AuditEntry `json:"audit_log"`
 	CreatedAt time.Time    `json:"created_at"`
 	UpdatedAt time.Time    `json:"updated_at"`
@@ -117,12 +119,21 @@ func Init(dir string, passphrase string) error {
 		return fmt.Errorf("failed to generate salt: %w", err)
 	}
 
+	// Generate the shared vault Data Encryption Key (DEK).
+	// This single key encrypts the snapshot so a solo owner can push
+	// and any future joiner can decrypt — see the design spec.
+	dataKey, err := newDataKey()
+	if err != nil {
+		return err
+	}
+
 	// Create empty vault file structure
 	vf := VaultFile{
 		Version:   version,
 		Salt:      salt,
 		PassHash:  crypto.HashPassphrase(passphrase),
 		Secrets:   []Secret{}, // empty slice (like [] in JS)
+		DataKey:   dataKey,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -602,6 +613,45 @@ func (v *Vault) GetKey() []byte {
 	}
 	// Derive from passphrase if key not set
 	return crypto.DeriveKey(v.passphrase, v.file.Salt)
+}
+
+// newDataKey returns 32 fresh random bytes for the vault DEK.
+func newDataKey() ([]byte, error) {
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		return nil, fmt.Errorf("failed to generate vault data key: %w", err)
+	}
+	return key, nil
+}
+
+// GetDataKey returns the shared vault Data Encryption Key.
+// May be empty for vaults created before this key existed — callers
+// that need it should use EnsureDataKey instead.
+func (v *Vault) GetDataKey() []byte {
+	return v.file.DataKey
+}
+
+// SetDataKey stores a DEK (e.g. one unwrapped from a join token) and
+// persists it inside the passphrase-encrypted vault file.
+func (v *Vault) SetDataKey(key []byte) error {
+	v.file.DataKey = key
+	return v.save()
+}
+
+// EnsureDataKey returns the vault DEK, generating and persisting one if
+// the vault predates the shared-key feature (transparent migration).
+func (v *Vault) EnsureDataKey() ([]byte, error) {
+	if len(v.file.DataKey) > 0 {
+		return v.file.DataKey, nil
+	}
+	key, err := newDataKey()
+	if err != nil {
+		return nil, err
+	}
+	if err := v.SetDataKey(key); err != nil {
+		return nil, err
+	}
+	return key, nil
 }
 
 // RemovePeer removes a trusted peer from the vault

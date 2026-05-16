@@ -1,0 +1,11 @@
+# Keep the Docker build context small and free of secrets/junk.
+# The server build only needs Go sources + go.mod/go.sum.
+.git
+.github
+.lv
+.env
+*.md
+docs
+public
+dist
+scripts

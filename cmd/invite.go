@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +11,7 @@ import (
 	"github.com/zain-23/local-vault/internal/client"
 	"github.com/zain-23/local-vault/internal/config"
 	"github.com/zain-23/local-vault/internal/identity"
+	internalsync "github.com/zain-23/local-vault/internal/sync"
 )
 
 var inviteCmd = &cobra.Command{
@@ -61,13 +64,41 @@ var inviteCmd = &cobra.Command{
 			)
 		}
 
+		// The shared vault key (DEK) must travel to the joiner inside the
+		// token. Load the vault to read it (generating one for vaults that
+		// predate this feature).
+		v, err := loadVault(dir)
+		if err != nil {
+			return err
+		}
+		dek, err := v.EnsureDataKey()
+		if err != nil {
+			return err
+		}
+
+		// Random per-token secret — never sent to the server in usable form.
+		secret := make([]byte, 24)
+		if _, err := rand.Read(secret); err != nil {
+			return fmt.Errorf("failed to generate token secret: %w", err)
+		}
+
+		wrappedDEK, err := internalsync.WrapKey(dek, secret)
+		if err != nil {
+			return err
+		}
+
 		token, err := sc.CreateToken(cfg.VaultID, client.CreateTokenRequest{
-			DeviceID: id.DeviceID,
-			Name:     name,
+			DeviceID:   id.DeviceID,
+			Name:       name,
+			WrappedDEK: wrappedDEK,
+			Verifier:   internalsync.DeriveVerifier(secret),
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create token: %w", err)
 		}
+
+		// Full shareable token = public id + "." + secret.
+		fullToken := token.ID + "." + base64.RawURLEncoding.EncodeToString(secret)
 
 		// Display token
 		fmt.Println()
@@ -75,16 +106,17 @@ var inviteCmd = &cobra.Command{
 		fmt.Println("║           🔐 LocalVault Join Token               ║")
 		fmt.Println("╠══════════════════════════════════════════════════╣")
 		fmt.Printf("║  For      : %-36s║\n", name)
-		fmt.Printf("║  Token    : %-36s║\n", token.ID)
 		fmt.Println("╠══════════════════════════════════════════════════╣")
 		fmt.Println("║  Share this token privately with your teammate   ║")
-		fmt.Println("║  They should run:                                ║")
-		fmt.Printf("║  lv join %-40s║\n", token.ID)
-		fmt.Println("╠══════════════════════════════════════════════════╣")
 		fmt.Println("║  ✅ No expiry — works until revoked              ║")
 		fmt.Println("║  ✅ Multiple teammates can use different tokens   ║")
-		fmt.Println("║  ✅ Revoke anytime: lv invite --revoke TOKEN     ║")
+		fmt.Printf("║  ✅ Revoke anytime: lv invite --revoke %-10s║\n", token.ID[:10]+"…")
 		fmt.Println("╚══════════════════════════════════════════════════╝")
+		fmt.Println()
+		fmt.Println("They should run:")
+		fmt.Printf("  lv join %s\n", fullToken)
+		fmt.Println()
+		fmt.Println("⚠️  This token contains the vault key — share it privately.")
 
 		return nil
 	},

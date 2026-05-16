@@ -40,6 +40,13 @@ var pushCmd = &cobra.Command{
 			return err
 		}
 
+		// Shared vault key — encrypts the snapshot. Generated here for
+		// vaults that predate this feature (transparent migration).
+		dek, err := v.EnsureDataKey()
+		if err != nil {
+			return err
+		}
+
 		sc := client.New(cfg.SignalingServer, id.DeviceID)
 		if err := sc.HealthCheck(); err != nil {
 			return err
@@ -80,15 +87,29 @@ var pushCmd = &cobra.Command{
 			}
 		}
 
+		// Encrypt the snapshot with the shared vault key and upload it —
+		// always, even with zero peers, so a solo owner is backed up and
+		// any future joiner gets everything immediately on join.
+		snapshot, err := internalsync.EncryptSnapshot(syncSecrets, dek)
+		if err != nil {
+			return err
+		}
+		if err := sc.UploadSnapshot(cfg.VaultID, snapshot); err != nil {
+			fmt.Printf("⚠️  Snapshot upload failed: %v\n", err)
+		} else {
+			fmt.Printf("✅ Backed up %d secret(s) to server\n", len(syncSecrets))
+		}
+
 		peers := v.GetPeers()
 		if len(peers) == 0 {
-			fmt.Println("No peers yet.")
-			fmt.Println("Invite teammates: lv invite --name \"Ahmed\"")
+			fmt.Println()
+			fmt.Println("No teammates yet — invite one:")
+			fmt.Println("  lv invite --name \"Ahmed\"")
+			fmt.Println("They'll get every secret the moment they join.")
 			return nil
 		}
 
-		fmt.Printf("📤 Pushing %d secret(s) to %d peer(s)...\n",
-			len(syncSecrets), len(peers))
+		fmt.Printf("📤 Pushing to %d peer(s)...\n", len(peers))
 
 		// ── Step 1: Send to each peer directly ─────────────────
 		for _, peer := range peers {
@@ -121,29 +142,7 @@ var pushCmd = &cobra.Command{
 			fmt.Printf("  ✅ Sent to %s\n", peer.DeviceName)
 		}
 
-		// ── Step 2: Upload snapshot to server ──────────────────
-		// Snapshot = secrets encrypted for ANY peer to decrypt on join
-		// Use first peer's key for snapshot encryption
-		// (anyone with valid token gets decryption ability via join)
-		fmt.Println()
-		fmt.Println("📡 Uploading snapshot to server...")
-
-		if len(peers) > 0 && peers[0].X25519PublicKey != nil {
-			snapshot, err := internalsync.EncryptForPeer(
-				syncSecrets,
-				id.X25519PrivateKey,
-				peers[0].X25519PublicKey,
-				id.DeviceID,
-			)
-			if err == nil {
-				if err := sc.UploadSnapshot(cfg.VaultID, snapshot); err != nil {
-					fmt.Printf("  ⚠️  Snapshot upload failed: %v\n", err)
-				} else {
-					fmt.Println("  ✅ Snapshot updated on server")
-					fmt.Println("     New joiners will get secrets immediately")
-				}
-			}
-		}
+		// (snapshot already uploaded above — shared-key, peer-independent)
 
 		// ── Step 3: Share peer list for full mesh ───────────────
 		for _, peer := range peers {

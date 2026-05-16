@@ -80,6 +80,35 @@ var syncCmd = &cobra.Command{
 			}
 		}
 
+		// ── Step 1.5: Pull shared-key snapshot ─────────────────
+		// The snapshot is encrypted with the vault DEK, so any member
+		// can pull the latest secrets at any time (true "git pull").
+		if dek := v.GetDataKey(); len(dek) > 0 && cfg.VaultID != "" {
+			if blob, _, derr := sc.DownloadSnapshot(cfg.VaultID); derr == nil && blob != nil {
+				rawSecrets, serr := internalsync.DecryptSnapshot(blob, dek)
+				if serr != nil {
+					return fmt.Errorf("snapshot decryption failed — vault key mismatch")
+				}
+				secrets := make([]vault.SecretEntry, len(rawSecrets))
+				for i, s := range rawSecrets {
+					secrets[i] = vault.SecretEntry{
+						Key:       s.Key,
+						Value:     s.Value,
+						Env:       s.Env,
+						UpdatedAt: s.UpdatedAt,
+					}
+				}
+				count, merr := v.MergeSecrets(secrets)
+				if merr != nil {
+					return merr
+				}
+				if count > 0 {
+					totalMerged += count
+					fmt.Printf("  ✅ %d secret(s) from snapshot\n", count)
+				}
+			}
+		}
+
 		// ── Step 2: Check mailbox for messages ─────────────────
 		msgs, err := sc.GetMessages()
 		if err != nil {
@@ -87,7 +116,11 @@ var syncCmd = &cobra.Command{
 		}
 
 		if msgs.Count == 0 {
-			fmt.Println("✅ Already up to date")
+			if totalMerged > 0 {
+				fmt.Printf("✅ Synced %d secret(s)\n", totalMerged)
+			} else {
+				fmt.Println("✅ Already up to date")
+			}
 			return nil
 		}
 
@@ -105,7 +138,7 @@ var syncCmd = &cobra.Command{
 						X25519PublicKey: msg.FromPublicKey,
 					})
 					peer, _ = v.GetPeer(msg.FromDeviceID)
-					fmt.Printf("  ✅ New peer: %s\n", msg.FromDeviceID[:8]+"...")
+					fmt.Printf("  ✅ New peer: %s\n", shortID(msg.FromDeviceID))
 				} else {
 					continue
 				}
