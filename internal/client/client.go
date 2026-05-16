@@ -52,9 +52,11 @@ type RegisterVaultResponse struct {
 
 // CreateTokenRequest sent on lv invite
 type CreateTokenRequest struct {
-	DeviceID  string     `json:"device_id"`
-	Name      string     `json:"name"`
-	ExpiresAt *time.Time `json:"expires_at"`
+	DeviceID   string     `json:"device_id"`
+	Name       string     `json:"name"`
+	ExpiresAt  *time.Time `json:"expires_at"`
+	WrappedDEK []byte     `json:"wrapped_dek"` // DEK wrapped with the token secret
+	Verifier   string     `json:"verifier"`    // one-way hash of the token secret
 }
 
 // Token returned from server
@@ -67,7 +69,8 @@ type Token struct {
 
 // JoinRequest sent on lv join
 type JoinRequest struct {
-	Token           string `json:"token"`
+	Token           string `json:"token"` // public id half only
+	Verifier        string `json:"verifier"`
 	DeviceID        string `json:"device_id"`
 	DeviceName      string `json:"device_name"`
 	PublicKey       []byte `json:"public_key"`
@@ -76,9 +79,10 @@ type JoinRequest struct {
 
 // JoinResponse returned after joining
 type JoinResponse struct {
-	VaultID  string `json:"vault_id"`
-	Snapshot []byte `json:"snapshot"` // nil if no snapshot yet
-	Peers    []Peer `json:"peers"`
+	VaultID    string `json:"vault_id"`
+	Snapshot   []byte `json:"snapshot"`    // nil if no snapshot yet
+	Peers      []Peer `json:"peers"`
+	WrappedDEK []byte `json:"wrapped_dek"` // nil for pre-migration tokens
 }
 
 // PendingMessage for offline delivery

@@ -78,7 +78,7 @@ var statusCmd = &cobra.Command{
 		fmt.Printf("  Peers     : %d trusted\n", len(peers))
 		for _, peer := range peers {
 			fmt.Printf("    ├─ %s (%s)\n",
-				peer.DeviceName, peer.DeviceID[:8]+"...")
+				peer.DeviceName, shortID(peer.DeviceID))
 		}
 
 		fmt.Println()

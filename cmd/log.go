@@ -61,12 +61,23 @@ var logCmd = &cobra.Command{
 			fmt.Printf("   Key    : %s [%s]\n", entry.Key, env)
 			fmt.Printf("   When   : %s\n",
 				entry.Timestamp.Format("2006-01-02 15:04:05"))
-			fmt.Printf("   Device : %s\n", entry.DeviceID[:8]+"...")
+			fmt.Printf("   Device : %s\n", shortID(entry.DeviceID))
 		}
 
 		fmt.Printf("\n%d entries total\n", len(entries))
 		return nil
 	},
+}
+
+// shortID truncates a device identifier for display.
+// Peer device IDs are UUIDs (36 chars); locally-originated audit
+// entries use the short sentinel "local". Only truncate when there
+// is actually something to hide, otherwise return the value as-is.
+func shortID(id string) string {
+	if len(id) <= 8 {
+		return id
+	}
+	return id[:8] + "..."
 }
 
 func init() {
