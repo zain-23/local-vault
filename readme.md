@@ -18,19 +18,28 @@
 
 ## Install
 
-**Linux**
+Prebuilt binaries are published to [GitHub Releases](https://github.com/zain-23/local-vault/releases) for Linux, macOS, and Windows.
+
+**Linux / macOS** — download the right archive, extract, and install:
 
 ```bash
-curl -fsSL https://github.com/zain-23/local-vault/releases/latest/download/install.sh | sh
+# pick your platform: linux_amd64 · linux_arm64 · darwin_amd64 · darwin_arm64
+curl -fsSL https://github.com/zain-23/local-vault/releases/latest/download/lv_linux_amd64.tar.gz \
+  | tar -xz lv
+sudo mv lv /usr/local/bin/lv
 ```
 
-**Mac**
+**Windows** — download `lv_windows_amd64.zip` from the
+[latest release](https://github.com/zain-23/local-vault/releases/latest),
+unzip, and add `lv.exe` to your `PATH`.
+
+**With Go**
 
 ```bash
-brew install zain-23/tap/lv
+go install github.com/zain-23/local-vault@latest
 ```
 
-**From Source**
+**From source**
 
 ```bash
 git clone https://github.com/zain-23/local-vault
@@ -38,6 +47,9 @@ cd local-vault
 go build -o lv .
 sudo mv lv /usr/local/bin/lv
 ```
+
+> The release binaries default to the hosted server. To point `lv` at a
+> different server, set `SERVER_URL`, e.g. `export SERVER_URL=https://your-server`.
 
 ---
 

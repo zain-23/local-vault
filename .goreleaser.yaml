@@ -1,0 +1,54 @@
+# GoReleaser config — https://goreleaser.com
+# Builds the `lv` CLI and publishes binaries to GitHub Releases on each tag.
+version: 2
+
+project_name: local-vault
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: lv
+    binary: lv
+    main: .                       # entry point is main.go at the repo root
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      # Inject the production server URL from the build environment.
+      # SERVER_URL is supplied by the release workflow — not hardcoded here.
+      - -X github.com/zain-23/local-vault/internal/config.defaultServerURL={{ .Env.SERVER_URL }}
+
+archives:
+  - id: lv
+    # No version in the name so `releases/latest/download/...` URLs are stable.
+    name_template: "lv_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: zain-23
+    name: local-vault

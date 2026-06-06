@@ -16,7 +16,12 @@ const configFile = "config.json"
 
 // defaultServerURL is used when SERVER_URL is unset and no address is
 // stored in config.json, so lv works out of the box for local dev.
-const defaultServerURL = "http://localhost:8080"
+//
+// Declared as a var (not const) so release builds can override it via
+// -ldflags "-X .../internal/config.defaultServerURL=https://..." — the
+// production URL is injected from the build environment, never committed.
+// The runtime SERVER_URL env var still takes precedence over this value.
+var defaultServerURL = "http://localhost:8080"
 
 func Load(lvDir string) (*Config, error) {
 	serverURL := os.Getenv("SERVER_URL")
