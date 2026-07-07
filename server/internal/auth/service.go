@@ -1,15 +1,20 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"golang.org/x/crypto/argon2"
 
+	"github.com/zain-23/local-vault/server/internal/common/apperror"
+	"github.com/zain-23/local-vault/server/internal/common/id"
 	"github.com/zain-23/local-vault/server/internal/common/jwt"
 	"github.com/zain-23/local-vault/server/internal/config"
 )
@@ -39,9 +44,8 @@ func NewService(store *Store, jwtSvc *jwt.Service, cfg config.Config) *Service {
 }
 
 
-//  --------- Password hashing ---------
 // HashPassword converts plain password to safe hash
-func hashPssword(password string) (string, error) {
+func hashPassword(password string) (string, error) {
 	salt := make([]byte, argonSaltLen)
 	if _, err := rand.Read(salt); err != nil {
 		return "", err
@@ -96,7 +100,6 @@ func verifyPassword(password, endcode string) bool {
 	return true
 }
 
-// --------------- Token helpers ---------------
 // generateRandomToken create URL-safe random string - used for email links
 func generateRandomToken() (string, error) {
 	b := make([]byte, 32)
@@ -107,14 +110,233 @@ func generateRandomToken() (string, error) {
 	return base64.RawStdEncoding.EncodeToString(b), nil
 }
 
-// sha25Hash hashes a token = we store the hash, never the raw token,
-// so leaked DB can't reuse tokens
-func sha25Hash(s string) string {
+// sha25Hash hashes a token = we store the hash, never the raw token, so leaked DB can't reuse tokens
+func sha256Hash(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(h[:]) // h[:] converts fixed-size array to slice
 }
 
+// createSessionAndTokens generates tokens + store session
+func (s *Service) createSessionAndTokens(ctx context.Context, user *User, deviceID, ip, userAgent string) (*LoginResponse, error) {
+	accessToken, err := s.jwt.GenerateAccessToken(user.ID, user.Email, deviceID)
+	if err != nil {
+		return  nil, apperror.ErrInternal
+	}
+
+	refreshToken, err := generateRandomToken()
+	if err != nil {
+		return nil, apperror.ErrInternal
+	}
+
+	now := time.Now()
+	s.Store.CreateSession(ctx, &Session{
+		ID: id.Generate("ses_", 12),
+		IP: ip,
+		RefreshTokenHash: sha256Hash(refreshToken),
+		CreatedAt: now,
+	})
+
+	return &LoginResponse{
+		AccessToken: accessToken,
+		RefreshToken: refreshToken,
+		User: *user,
+	}, nil
+}
+
+// verifyTOTP — placeholder until Account domain adds 2FA setup
+func verifyTOTP(secret, code string) bool {
+	return false // no user has 2FA enabled yet — setup endpoints come in Account domain
+}
+
 // ------------- Signup ------------------------
-// func (s *Service) Signup(ctx config.Config, req SignupRequest) (*SignupResponse, error) {
-	
-// } 
+func (s *Service) Signup(ctx context.Context, req SignupRequest) (string, error) {
+	// reject duplicate emails
+	existing, err := s.Store.FindUserByEmail(ctx, strings.ToLower(req.Email))
+	if err != nil {
+		return "", apperror.ErrInternal
+	}
+
+	if existing != nil {
+		return  "", apperror.New(409, "email already registered")
+	}
+
+	passwordHash, err := hashPassword(req.Password)
+	if err != nil {
+		return  "", apperror.ErrInternal
+	}
+
+	now := time.Now()
+	user := &User{
+		ID: 			id.Generate("usr_", 12),
+		Email: 			strings.ToLower(req.Email),
+		Name: 			req.Name,
+		PasswordHash: 	passwordHash,
+		EmailVerified: 	false,
+		CreatedAt: 		now,
+		UpdatedAt: 		now,	
+	}
+	if err := s.Store.CreateUser(ctx, user); err != nil {
+		return "", apperror.ErrInternal
+	}
+
+	// send verification email - user must prove they own this email
+	token, err := generateRandomToken()
+	if err != nil {
+		return  "", apperror.ErrInternal
+	}
+
+	s.Store.CreateEmailVerification(ctx, &EmailVerification{
+		ID: 		id.Generate("evr_", 12),
+		UserID: 	user.ID,
+		TokenHash: 	sha256Hash(token),
+		CreatedAt: 	now,
+		ExpiresAt: 	now.Add(24 * time.Hour),
+	})
+	return  "", nil
+	// verfyURL := fmt.Sprintf("%s/verify-email?token=%s", s.cfg.FrontendURL, token)
+}
+
+// -------------------- Login ---------------------
+func (s *Service) Login(ctx context.Context, req LoginRequest, ip, userAgent string) (any, error) {
+	user, err := s.Store.FindUserByEmail(ctx, strings.ToLower(req.Email))
+	if err != nil {
+		return  nil, apperror.ErrInternal
+	}
+
+	if user == nil {
+		return nil, apperror.New(401, "invalid email or password")
+	}
+
+	// OAuth-only accounts have no password - they must login via OAuth
+	if user.PasswordHash == "" {
+		return nil, apperror.New(401, "this account uses OAuth login")
+	}
+
+	if !verifyPassword(req.Password, user.PasswordHash) {
+		return  nil, apperror.New(401, "invalid email or password")
+	}
+
+	if !user.EmailVerified {
+		return  nil, apperror.New(403, "please verify your email before logging in")
+	}
+
+	// if 2FA enabled - don't give full tokens yet, require TOTP code first
+	if user.TwoFactorEnabled {
+		tempToken, err := s.jwt.GenerateTempToken(user.ID)
+		if err != nil {
+			return  nil, apperror.ErrInternal
+		}
+
+		return &Login2FARequiredResponse{
+			Requires2FA: true,
+			TempToken: tempToken,
+		}, nil
+	}
+
+	return  s.createSessionAndTokens(ctx, user, "", ip, userAgent)
+} 
+
+// Login2FA completes login after user enters TOTP code
+func (s *Service) Login2FA(ctx context.Context, req Login2FARequest, ip, userAgent string) (*LoginResponse, error) {
+	claims, err := s.jwt.ValidateToken(req.TempToken)
+	if err != nil || claims.Type != "2fa_temp" {
+		return nil, apperror.New(401, "invalid or expired 2FA token")
+	}
+
+	user, err := s.Store.FindUserByID(ctx, claims.Subject)
+	if err != nil || user == nil {
+		return nil, apperror.New(401, "user not found")
+	}
+
+	// verify TOTP - placeholder until Account domain implements 2FA setup
+	if !verifyTOTP(user.TwoFactorSecret, req.TOTPCode) {
+		return nil, apperror.New(401, "invalid 2FA code")
+	}
+
+	return s.createSessionAndTokens(ctx, user, "", ip, userAgent)
+}
+
+func (s *Service) RefreshToken(ctx context.Context, req RefreshRequest) (*RefreshResponse, error) {
+	session, err := s.Store.FindSessionByTokenHash(ctx, sha256Hash(req.RefreshToken))
+	if err != nil {
+		return nil, apperror.ErrInternal
+	}
+	if session == nil {
+		return nil, apperror.New(401, "invalid or expired refresh token")
+	}
+
+	user, err := s.Store.FindUserByID(ctx, session.UserID)
+	if err != nil || user == nil {
+		return nil, apperror.New(401, "user not found")
+	}
+
+	accessToken, err := s.jwt.GenerateAccessToken(user.ID, user.Email, "")
+	if err != nil {
+		return nil, apperror.ErrInternal
+	}
+	return &RefreshResponse{AccessToken: accessToken}, nil
+}
+
+// ------------------------ Logout -----------------
+func (s *Service) Logout(ctx context.Context, refreshToken string) error {
+	// Input already validated in the handler (RefreshRequest tag)
+	return s.Store.DeleteSessionByTokenHash(ctx, sha256Hash(refreshToken))
+}
+
+// ---------------------- Email verification ------------------
+func (s *Service) VerifyEmail(ctx context.Context, req VerifyEmailRequest) (*LoginResponse, error) {
+	ev, err := s.Store.FindEmailVerificationByHash(ctx, sha256Hash(req.Token))
+	if err != nil {
+		return nil, apperror.ErrInternal
+	}
+	if ev == nil {
+		return nil, apperror.New(400, "invalid or expired verification token")
+	}
+
+	// Mark verified + auto-login
+	s.Store.UpdateUser(ctx, ev.UserID, bson.M{"email_verified": true, "updated_at": time.Now()})
+	s.Store.DeleteEmailVerification(ctx, ev.ID)
+
+	user, err := s.Store.FindUserByID(ctx, ev.UserID)
+	if err != nil || user == nil {
+		return nil, apperror.ErrInternal
+	}
+	return s.createSessionAndTokens(ctx, user, "", "", "")
+}
+
+// ForgotPassword always returns success — prevents attackers from discovering which emails exist
+func (s *Service) ForgotPassword(ctx context.Context, req ForgotPasswordRequest) (string, error) {
+	user, _ := s.Store.FindUserByEmail(ctx, strings.ToLower(req.Email))
+	if user != nil {
+		token, _ := generateRandomToken()
+		now := time.Now()
+		s.Store.CreatePasswordReset(ctx, &PasswordReset{
+			ID: id.Generate("prs_", 12), UserID: user.ID,
+			TokenHash: sha256Hash(token), Used: false,
+			CreatedAt: now, ExpiresAt: now.Add(1 * time.Hour),
+		})
+		// resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.FrontendURL, token)
+		// s.email.SendPasswordResetEmail(user.Email, user.Name, resetURL)
+	}
+	return "If that email exists, a reset link has been sent.", nil
+}
+
+func (s *Service) ResetPassword(ctx context.Context, req ResetPasswordRequest) (string, error) {
+	// Input already validated in the handler (token required, new_password min 8)
+	pr, err := s.Store.FindPasswordResetByHash(ctx, sha256Hash(req.Token))
+	if err != nil {
+		return "", apperror.ErrInternal
+	}
+	if pr == nil {
+		return "", apperror.New(400, "invalid or expired reset token")
+	}
+
+	passwordHash, err := hashPassword(req.NewPassword)
+	if err != nil {
+		return "", apperror.ErrInternal
+	}
+	s.Store.UpdateUser(ctx, pr.UserID, bson.M{"password_hash": passwordHash, "updated_at": time.Now()})
+	s.Store.MarkPasswordResetUsed(ctx, pr.ID)
+
+	return "Password reset successfully. You can now log in.", nil
+}

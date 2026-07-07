@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -34,6 +35,11 @@ type Config struct {
 
 	FrontendURL        string
 	CORSAllowedOrigins string
+
+	// RabbitMQ + email worker settings
+	RabbitMQURL			string
+	EmailMaxRetries		int
+	EmailRetryDelay		time.Duration	// wait this long before each retry
 }
 
 // Load reads env vars and returns Config — call once in main()
@@ -64,6 +70,10 @@ func Load() Config {
 
 		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:3000"),
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000"),
+
+		RabbitMQURL: 		getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
+		EmailMaxRetries:	parseInt(getEnv("EMAIL_MAX_RETRIES", "5")),
+		EmailRetryDelay: 	parseDuration(getEnv("EMAIL_RETRY_DELAY", "30s")),
 	}
 }
 
@@ -81,4 +91,13 @@ func parseDuration(s string) time.Duration {
 		return 15 * time.Minute // safe default if parsing fails
 	}
 	return d
+}
+
+// parseInt converts a string like "5" to int, with a safe fallback
+func parseInt(s string) int {
+	n, err := strconv.Atoi(s) // Atoi = ASCII to integer
+	if err != nil {
+		return 5 // safe default
+	}
+	return n
 }
