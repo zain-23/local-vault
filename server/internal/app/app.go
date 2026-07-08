@@ -14,14 +14,16 @@ import (
 
 	"github.com/zain-23/local-vault/server/internal/common/apperror"
 	"github.com/zain-23/local-vault/server/internal/config"
+	"github.com/zain-23/local-vault/server/internal/email"
 )
 
 const serverVersion = "3.0.0"
 
 // App holds the Fiber app and database — the single object main.go runs
 type App struct {
-	Fiber *fiber.App
-	DB    *mongo.Database
+	Fiber 		*fiber.App
+	DB    		*mongo.Database
+	Publisher	*email.Publisher
 }
 
 // New connects to MongoDB, configures Fiber with middleware, and registers health endpoint
@@ -43,6 +45,19 @@ func New(cfg config.Config) (*App, error) {
 
 	// Select database — MongoDB creates it automatically on first write
 	db := client.Database(cfg.MongoDB)
+
+	// --------------- RabbitMQ (email pipeline) ---------
+	// connect once at startup; the connection lives for the process lifetime
+	_, mqCh, err := email.Connect(cfg.RabbitMQURL)
+	if err != nil {
+		return nil, err
+	}
+	// Declare the same topology the worker declares - idempotent, safe to repeat
+	if err := email.DeclareTopology(mqCh, cfg.EmailRetryDelay); err != nil {
+		return nil, err
+	}
+	publisher := email.NewPublisher(mqCh)
+	log.Printf("✅ Connected to RabbitMQ")
 
 	// --- Fiber ---
 	app := fiber.New(fiber.Config{
@@ -79,5 +94,5 @@ func New(cfg config.Config) (*App, error) {
 		})
 	})
 
-	return &App{Fiber: app, DB: db}, nil
+	return &App{Fiber: app, DB: db, Publisher: publisher}, nil
 }

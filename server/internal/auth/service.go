@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/zain-23/local-vault/server/internal/common/id"
 	"github.com/zain-23/local-vault/server/internal/common/jwt"
 	"github.com/zain-23/local-vault/server/internal/config"
+	"github.com/zain-23/local-vault/server/internal/email"
 )
 
 // Argon2id params - controls how hard it is to brute-force password
@@ -33,13 +35,15 @@ type Service struct {
 	Store		*Store
 	jwt 		*jwt.Service
 	cfg			config.Config
+	publisher	*email.Publisher
 }
 
-func NewService(store *Store, jwtSvc *jwt.Service, cfg config.Config) *Service {
+func NewService(store *Store, jwtSvc *jwt.Service, cfg config.Config, pub *email.Publisher) *Service {
 	return &Service{
 		Store: store,
 		jwt: jwtSvc,
 		cfg: cfg,
+		publisher: pub,
 	}
 }
 
@@ -192,8 +196,20 @@ func (s *Service) Signup(ctx context.Context, req SignupRequest) (string, error)
 		CreatedAt: 	now,
 		ExpiresAt: 	now.Add(24 * time.Hour),
 	})
+
+	// Build the link and enqueue the email - a queue hiccup must not fail signup
+	verifyURL := fmt.Sprintf("%s/verify-email?token=%s", s.cfg.FrontendURL, token)
+	job := email.EmailJob{
+		Kind: email.KindVerification,
+		Name: email.EmailKind(user.Name),
+		URL: email.EmailKind(verifyURL),
+		To: email.EmailKind(user.Email),
+	}
+
+	if err := s.publisher.Publish(ctx, job); err != nil {
+		log.Printf("⚠️ failed to enqueue verification email for %s: %v", user.Email, err)
+	}
 	return  "", nil
-	// verfyURL := fmt.Sprintf("%s/verify-email?token=%s", s.cfg.FrontendURL, token)
 }
 
 // -------------------- Login ---------------------
