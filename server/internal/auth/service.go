@@ -201,9 +201,9 @@ func (s *Service) Signup(ctx context.Context, req SignupRequest) (string, error)
 	verifyURL := fmt.Sprintf("%s/verify-email?token=%s", s.cfg.FrontendURL, token)
 	job := email.EmailJob{
 		Kind: email.KindVerification,
-		Name: email.EmailKind(user.Name),
-		URL: email.EmailKind(verifyURL),
-		To: email.EmailKind(user.Email),
+		Name: user.Name,
+		URL: verifyURL,
+		To: user.Email,
 	}
 
 	if err := s.publisher.Publish(ctx, job); err != nil {

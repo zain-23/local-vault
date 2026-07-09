@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+  <body
+    style="
+      font-family: Arial, sans-serif;
+      background: #f6f6f6;
+      padding: 24px;
+      margin: 0;
+    "
+  >
+    <div
+      style="
+        max-width: 480px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 32px;
+      "
+    >
+      <h1 style="color: #111111; font-size: 20px; margin: 0 0 16px">
+        LocalVault
+      </h1>
+      {{/* each email template supplies this "content" block */}} {{block
+      "content" .}}{{end}}
+      <hr style="border: none; border-top: 1px solid #eeeeee; margin: 24px 0" />
+      <p style="color: #999999; font-size: 12px; margin: 0">
+        © LocalVault. If you didn't request this, you can ignore this email.
+      </p>
+    </div>
+  </body>
+</html>

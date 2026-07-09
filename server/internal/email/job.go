@@ -11,7 +11,7 @@ const (
 // EmailJob is the message we put on the queue - json-encoded in the body
 type EmailJob struct {
 	Kind	EmailKind	`json:"kind"`
-	To		EmailKind	`json:"to"`
-	Name	EmailKind	`json:"name"`
-	URL		EmailKind	`json:"url"`
+	To		string	`json:"to"`
+	Name	string	`json:"name"`
+	URL		string	`json:"url"`
 }
