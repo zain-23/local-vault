@@ -38,7 +38,7 @@ type Service struct {
 	publisher	*email.Publisher
 }
 
-func NewService(store *Store, jwtSvc *jwt.Service, cfg config.Config, pub *email.Publisher) *Service {
+func NewService(store *Store, jwtSvc *jwt.Service, pub *email.Publisher, cfg config.Config) *Service {
 	return &Service{
 		Store: store,
 		jwt: jwtSvc,
@@ -209,7 +209,7 @@ func (s *Service) Signup(ctx context.Context, req SignupRequest) (string, error)
 	if err := s.publisher.Publish(ctx, job); err != nil {
 		log.Printf("⚠️ failed to enqueue verification email for %s: %v", user.Email, err)
 	}
-	return  "", nil
+	return  "Account created. Check your email to verify.", nil
 }
 
 // -------------------- Login ---------------------
@@ -329,10 +329,20 @@ func (s *Service) ForgotPassword(ctx context.Context, req ForgotPasswordRequest)
 		s.Store.CreatePasswordReset(ctx, &PasswordReset{
 			ID: id.Generate("prs_", 12), UserID: user.ID,
 			TokenHash: sha256Hash(token), Used: false,
-			CreatedAt: now, ExpiresAt: now.Add(1 * time.Hour),
+			CreatedAt: now, 
+			ExpiresAt: now.Add(1 * time.Hour),
 		})
-		// resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.FrontendURL, token)
-		// s.email.SendPasswordResetEmail(user.Email, user.Name, resetURL)
+		resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.FrontendURL, token)
+		job := email.EmailJob{
+			Kind: email.KindPasswordReset,
+			To: user.Email,
+			Name: user.Name,
+			URL: resetURL,
+		}
+
+		if err := s.publisher.Publish(ctx, job); err != nil {
+			log.Printf("⚠️ failed to enqueue password forgot email for %s: %v", user.Email, err)
+		}
 	}
 	return "If that email exists, a reset link has been sent.", nil
 }
@@ -355,4 +365,58 @@ func (s *Service) ResetPassword(ctx context.Context, req ResetPasswordRequest) (
 	s.Store.MarkPasswordResetUsed(ctx, pr.ID)
 
 	return "Password reset successfully. You can now log in.", nil
+}
+
+// ---------------------------- Magic Link --------------------
+// SendMagicLink always returns success - same reason as ForgotPassword
+func (s *Service) SendMagicLink(ctx context.Context, req MagicLinkRequest) (string, error) {
+	user, _ := s.Store.FindUserByEmail(ctx, strings.ToLower(req.Email))
+	
+	if user != nil {
+		token, _ := generateRandomToken()
+		now := time.Now()
+		s.Store.CreateMagicLink(ctx, &MagicLink{
+			ID: id.Generate("mgl_", 12),
+			Email: user.Email,
+			TokenHash: sha256Hash(token),
+			Used: false,
+			CreatedAt: now,
+			ExpiresAt: now.Add(15 * time.Minute),
+		})
+
+		magicURL := fmt.Sprintf("%s/magic-link?token=%s", s.cfg.FrontendURL, token)
+		job := email.EmailJob{
+			Kind: email.KindSendMagicLink,
+			To: user.Email,
+			Name: user.Name,
+			URL: magicURL,
+		}
+		if err := s.publisher.Publish(ctx, job); err != nil {
+			log.Printf("⚠️ failed to enqueue password send magic email for %s: %v", user.Email, err)
+		}
+	}
+	return "If that email exists, a login link has been sent.", nil
+}
+
+func (s *Service) VerifyMagicLink(ctx context.Context, req MagicLinkVerifyRequest, ip, userAgent string) (*LoginResponse, error) {
+	// Input already validated in the handler
+	ml, err := s.Store.FindMagicLinkByHash(ctx, sha256Hash(req.Token))
+	if err != nil {
+		return nil, apperror.ErrInternal
+	}
+	if ml == nil {
+		return nil, apperror.New(400, "invalid or expired magic link")
+	}
+
+	s.Store.MarkMagicLinkUsed(ctx, ml.ID)
+
+	user, err := s.Store.FindUserByEmail(ctx, ml.Email)
+	if err != nil || user == nil {
+		return nil, apperror.ErrInternal
+	}
+	// Auto-verify email via magic link — user proved they have access
+	if !user.EmailVerified {
+		s.Store.UpdateUser(ctx, user.ID, bson.M{"email_verified": true, "updated_at": time.Now()})
+	}
+	return s.createSessionAndTokens(ctx, user, "", ip, userAgent)
 }

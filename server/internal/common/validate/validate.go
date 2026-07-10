@@ -39,21 +39,38 @@ func Struct(s any) string {
 	return  "invalid request"
 }
 
+func fieldName(fe validator.FieldError) string {
+	field := fe.Field()
+	return strings.ToLower(field[:1]) + field[1:]
+}
+
 // message turns one field error into human text like "email must be a valid email"
 func message(fe validator.FieldError) string {
-	field := fe.Field()
+	field := fieldName(fe)
+
 	switch fe.Tag() {
-		
 	case "required":
-		return  field + " is required"
+		return fmt.Sprintf("%s is required", field)
 
 	case "email":
-		return field + " must be a valid email"
-	
+		return fmt.Sprintf("%s must be a valid email address", field)
+
 	case "min":
-		return fmt.Sprintf("%s must be at least %s characters", field, fe.Param())
-	
+		return fmt.Sprintf("%s must be at least %s characters long", field, fe.Param())
+
+	case "max":
+		return fmt.Sprintf("%s must not exceed %s characters", field, fe.Param())
+
+	case "oneof":
+		return fmt.Sprintf("%s must be one of: %s", field, fe.Param())
+
+	case "len":
+		return fmt.Sprintf("%s must be exactly %s characters long", field, fe.Param())
+
+	case "eqfield":
+		return fmt.Sprintf("%s must match %s", field, fe.Param())
+
 	default:
-		return field + " is invalid"
+		return fmt.Sprintf("%s is invalid", field)
 	}
 }

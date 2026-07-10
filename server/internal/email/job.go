@@ -6,6 +6,7 @@ type EmailKind string
 const (
 	KindVerification 	EmailKind = "verification"
 	KindPasswordReset 	EmailKind = "password_reset"
+	KindSendMagicLink	EmailKind = "send_magic_link"
 )
 
 // EmailJob is the message we put on the queue - json-encoded in the body

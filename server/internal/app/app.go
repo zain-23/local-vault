@@ -12,7 +12,9 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
+	"github.com/zain-23/local-vault/server/internal/auth"
 	"github.com/zain-23/local-vault/server/internal/common/apperror"
+	"github.com/zain-23/local-vault/server/internal/common/jwt"
 	"github.com/zain-23/local-vault/server/internal/config"
 	"github.com/zain-23/local-vault/server/internal/email"
 )
@@ -24,6 +26,7 @@ type App struct {
 	Fiber 		*fiber.App
 	DB    		*mongo.Database
 	Publisher	*email.Publisher
+	JWTService	*jwt.Service
 }
 
 // New connects to MongoDB, configures Fiber with middleware, and registers health endpoint
@@ -94,5 +97,17 @@ func New(cfg config.Config) (*App, error) {
 		})
 	})
 
-	return &App{Fiber: app, DB: db, Publisher: publisher}, nil
+	// ------------ Wire Auth domain ----------
+	// Create shared services first
+	jwtService := jwt.NewService(cfg.JWTSecret, cfg.JWTAccessExpiry)
+
+	// Create auth domain: store -> service -> handler
+	authStore := auth.NewStore(db)
+	authService := auth.NewService(authStore, jwtService, publisher, cfg)
+	authHandler := auth.NewHandler(authService)
+
+	// Register all auth routes on the fiber app
+	auth.RegisterRoutes(app, authHandler)
+
+	return &App{Fiber: app, DB: db, Publisher: publisher, JWTService: jwtService}, nil
 }
