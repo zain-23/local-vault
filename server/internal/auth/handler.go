@@ -1,22 +1,79 @@
 package auth
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/zain-23/local-vault/server/internal/common/apperror"
 	"github.com/zain-23/local-vault/server/internal/common/response"
 	"github.com/zain-23/local-vault/server/internal/common/validate"
+	"github.com/zain-23/local-vault/server/internal/config"
 )
 
 // Handler holds auth HTTP handlers
 type Handler struct {
 	service		*Service
+	cfg			config.Config
 }
 
-func NewHandler(service *Service) *Handler {
+func NewHandler(service *Service, cfg config.Config) *Handler {
 	return &Handler{
 		service: service,
+		cfg: cfg,
 	}
 }
+
+// ---------------------------- Cookies Helper ----------------
+// setAccessCookie writes the short-lived access token as an HttpOnly cookie.
+func (h *Handler) setAccessCookie(c *fiber.Ctx, token string) {
+	c.Cookie(&fiber.Cookie{
+			Name:     "access_token",
+			Value:    token,
+			Path:     "/",                                 // sent to every route
+			HTTPOnly: true,
+			Secure:   h.cfg.Env == "production",
+			SameSite: "Lax",                          
+			Expires:  time.Now().Add(h.cfg.JWTAccessExpiry),
+	})
+}
+
+// setRefreshCookie writes the long-lived refresh token, scoped to the auth routes only.
+func (h *Handler) setRefreshCookie(c *fiber.Ctx, token string) {
+	c.Cookie(&fiber.Cookie{
+			Name:     "refresh_token",
+			Value:    token,
+			Path:     "/api/v1/auth",                      // narrow sco
+			HTTPOnly: true,
+			Secure:   h.cfg.Env == "production",
+			SameSite: "Lax",
+			Expires:  time.Now().Add(h.cfg.JWTRefreshExpiry),
+	})
+}
+
+func (h *Handler) setAuthCookies(c *fiber.Ctx, lr *LoginResponse) {
+	h.setAccessCookie(c, lr.AccessToken)
+	h.setRefreshCookie(c, lr.RefreshToken)
+}
+
+func (h *Handler) clearAuthCookies(c *fiber.Ctx) {
+	expired := time.Now().Add(-time.Hour)
+	secure := h.cfg.Env == "production"
+	c.Cookie(&fiber.Cookie{
+		Name: "access_token", 
+		Value: "", Path: "/", 
+		SameSite: "Lax", 
+		Expires: expired,
+	})
+	c.Cookie(&fiber.Cookie{
+		Name: "refresh_token", 
+		Value: "", Path: "/api/v1/auth", 
+		HTTPOnly: true, 
+		Secure: secure, 
+		SameSite: "Lax", 
+		Expires: expired,
+	})
+}
+
 
 // Signup handles POST/api/v1/auth/signup
 func (h *Handler) Signup(ctx *fiber.Ctx) error {
@@ -50,26 +107,33 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		return apperror.New(400, msg)
 	}
 	// c.IP() and c.Get("User-Agent") = client info for session tracking
-	resp, err := h.service.Login(c.UserContext(), req, c.IP(), c.Get("User-Agent"))
+	result, err := h.service.Login(c.UserContext(), req, c.IP(), c.Get("User-Agent"))
 	if err != nil {
 		return err
 	}
-	return response.Success(c, resp, fiber.StatusOK, "login successful")
+
+	if result.Requires2FA {
+		return response.Success(c, Login2FARequiredResponse{
+			Requires2FA: result.Requires2FA,
+			TempToken: result.TempToken,
+		}, fiber.StatusOK, "2Fa required")
+	}
+
+	h.setAuthCookies(c, result.Tokens)
+	return response.Success(c, result.Tokens.User, fiber.StatusOK, "login successful")
 }
 
 // RefreshToken handles POST /api/v1/auth/refresh
 func (h *Handler) RefreshToken(c *fiber.Ctx) error {
-	var req RefreshRequest
-	if err := c.BodyParser(&req); err != nil {
-		return apperror.ErrInvalidBody
-	}
-	if msg := validate.Struct(req); msg != "" {
-		return apperror.New(400, msg)
-	}
-	resp, err := h.service.RefreshToken(c.UserContext(), req)
+	refreshToken := c.Cookies("refresh_token")
+	if refreshToken == "" {
+        return apperror.New(fiber.StatusUnauthorized, "refresh token is missing")
+    }
+	resp, err := h.service.RefreshToken(c.UserContext(), RefreshRequest{RefreshToken:refreshToken})
 	if err != nil {
 		return err
 	}
+	h.setAccessCookie(c, resp.AccessToken)
 	return response.Success(c, resp, fiber.StatusOK, "token refreshed")
 }
 

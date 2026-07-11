@@ -104,10 +104,12 @@ func New(cfg config.Config) (*App, error) {
 	// Create auth domain: store -> service -> handler
 	authStore := auth.NewStore(db)
 	authService := auth.NewService(authStore, jwtService, publisher, cfg)
-	authHandler := auth.NewHandler(authService)
+	authHandler := auth.NewHandler(authService, cfg)
+	// OAuth
+	oauthHandler := auth.NewOAuthHandler(authService, cfg)
 
 	// Register all auth routes on the fiber app
-	auth.RegisterRoutes(app, authHandler)
+	auth.RegisterRoutes(app, authHandler, oauthHandler)
 
 	return &App{Fiber: app, DB: db, Publisher: publisher, JWTService: jwtService}, nil
 }

@@ -67,8 +67,9 @@ func hashPassword(password string) (string, error) {
 }
 
 // verifyPassword re-hashes with same salth and compares - returns true if password matches
-func verifyPassword(password, endcode string) bool {
-	parts := strings.Split(endcode, "$")
+func verifyPassword(password, encode string) bool {
+	parts := strings.Split(encode, "$")
+
 	if len(parts) != 6 {
 		return  false
 	}
@@ -83,7 +84,7 @@ func verifyPassword(password, endcode string) bool {
 		return  false
 	}
 
-	expectedHash, err := base64.RawStdEncoding.DecodeString(parts[4])
+	expectedHash, err := base64.RawStdEncoding.DecodeString(parts[5])
 	if err != nil {
 		return  false
 	}
@@ -136,8 +137,11 @@ func (s *Service) createSessionAndTokens(ctx context.Context, user *User, device
 	s.Store.CreateSession(ctx, &Session{
 		ID: id.Generate("ses_", 12),
 		IP: ip,
+		UserAgent: userAgent,
+		UserID: user.ID,
 		RefreshTokenHash: sha256Hash(refreshToken),
 		CreatedAt: now,
+		ExpiresAt: now.Add(s.cfg.JWTRefreshExpiry),
 	})
 
 	return &LoginResponse{
@@ -213,7 +217,7 @@ func (s *Service) Signup(ctx context.Context, req SignupRequest) (string, error)
 }
 
 // -------------------- Login ---------------------
-func (s *Service) Login(ctx context.Context, req LoginRequest, ip, userAgent string) (any, error) {
+func (s *Service) Login(ctx context.Context, req LoginRequest, ip, userAgent string) (*LoginResult, error) {
 	user, err := s.Store.FindUserByEmail(ctx, strings.ToLower(req.Email))
 	if err != nil {
 		return  nil, apperror.ErrInternal
@@ -243,13 +247,18 @@ func (s *Service) Login(ctx context.Context, req LoginRequest, ip, userAgent str
 			return  nil, apperror.ErrInternal
 		}
 
-		return &Login2FARequiredResponse{
+		return &LoginResult{
 			Requires2FA: true,
 			TempToken: tempToken,
 		}, nil
 	}
 
-	return  s.createSessionAndTokens(ctx, user, "", ip, userAgent)
+	tokens, err := s.createSessionAndTokens(ctx, user, "", ip, userAgent)
+	if err != nil {
+		return nil, err
+	}
+
+	return  &LoginResult{Tokens: tokens}, nil
 } 
 
 // Login2FA completes login after user enters TOTP code
@@ -418,5 +427,54 @@ func (s *Service) VerifyMagicLink(ctx context.Context, req MagicLinkVerifyReques
 	if !user.EmailVerified {
 		s.Store.UpdateUser(ctx, user.ID, bson.M{"email_verified": true, "updated_at": time.Now()})
 	}
+	return s.createSessionAndTokens(ctx, user, "", ip, userAgent)
+}
+
+
+// ---------------------- OAuth Helper -----------------
+// FindOrCreateOAuthUser finds existing user or creates new one for OAuth login
+func (s *Service) FindOrCreateOAuthUser(ctx context.Context, provider, oauthID, email, name, avatarURL string) (*User, error) {
+	user, _ := s.Store.FindUserByOAuth(ctx, provider, oauthID)
+	if user != nil {
+		return user, nil
+	}
+
+	// Try by email - link OAuth to existing email/password account
+	user, _ = s.Store.FindUserByEmail(ctx, strings.ToLower(email))
+
+	if user != nil {
+		s.Store.UpdateUser(ctx, user.ID, bson.M{
+			"oauth_provider": provider,
+			"oauth_id": oauthID,
+			"avatar_url": avatarURL,
+			"email_verified": true,
+			"updated_at": time.Now(),
+		})
+		return user, bson.ErrDecodeToNil
+	}
+
+	// New user - OAuth emails are pre-verified by the provider
+	now := time.Now()
+	user = &User{
+		ID: id.Generate("usr", 12),
+		Email: email,
+		Name: name,
+		OAuthProvider: provider,
+		OAuthID: oauthID,
+		EmailVerified: true,
+		AvatarURL: avatarURL,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	if err := s.Store.CreateUser(ctx, user); err != nil {
+		return nil, apperror.ErrInternal
+	}
+
+	return user, nil
+}
+
+// OAuthLogin creates session for an OAuth user — called after provider verification
+func (s *Service) OAuthLogin(ctx context.Context, user *User, ip, userAgent string) (*LoginResponse, error) {
 	return s.createSessionAndTokens(ctx, user, "", ip, userAgent)
 }

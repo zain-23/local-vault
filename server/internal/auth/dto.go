@@ -21,10 +21,15 @@ type LoginResponse struct {
 	User         User   `json:"user"`
 }
 
-// Returned when user has 2FA — client must call /login/2fa with the temp token + TOTP code
+type LoginResult struct {
+	Requires2FA bool				`json:"requires_2fa"`
+	TempToken   string				`json:"temp_token"`
+	Tokens      *LoginResponse		`json:"tokens"`
+}
+
 type Login2FARequiredResponse struct {
-	Requires2FA bool   `json:"requires_2fa"`
-	TempToken   string `json:"temp_token"`
+	Requires2FA bool				`json:"requires_2fa"`
+	TempToken   string				`json:"temp_token"`
 }
 
 type Login2FARequest struct {
