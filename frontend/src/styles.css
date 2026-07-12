@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
 @plugin '@tailwindcss/typography';
 
@@ -27,39 +27,48 @@
   --hero-a: rgba(79, 184, 178, 0.36);
   --hero-b: rgba(47, 106, 74, 0.2);
 
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.21 0.006 285.885);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.21 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.871 0.006 286.286);
+  /* LocalVault — light (warm gold accent, Vercel-flavored neutrals) */
+  --background: #ffffff;
+  --foreground: #0c0c0c;
+  --card: #ffffff;
+  --card-foreground: #0c0c0c;
+  --popover: #ffffff;
+  --popover-foreground: #0c0c0c;
+  --primary: #9a6a1e;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f1f1;
+  --secondary-foreground: #0c0c0c;
+  --muted: #fafafa;
+  --muted-foreground: #6c6c6c;
+  --accent: #f1f1f1;
+  --accent-foreground: #0c0c0c;
+  --destructive: #b23a26;
+  --destructive-foreground: #ffffff;
+  --border: #e7e7e7;
+  --border-strong: #d4d4d4;
+  --input: #e7e7e7;
+  --ring: #9a6a1e;
+
+  /* LocalVault brand extras (gold soft fill, status colors) */
+  --accent-soft: rgba(154, 106, 30, 0.1);
+  --accent-border: rgba(154, 106, 30, 0.38);
+  --success: #2e7d4f;
+  --warning: #9a6a1e;
+
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-primary: oklch(0.21 0.006 285.885);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.871 0.006 286.286);
+  --radius: 0.5rem;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #0c0c0c;
+  --sidebar-primary: #9a6a1e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f1f1;
+  --sidebar-accent-foreground: #0c0c0c;
+  --sidebar-border: #e7e7e7;
+  --sidebar-ring: #9a6a1e;
 }
 
 .dark {
@@ -83,42 +92,51 @@
   --hero-a: rgba(96, 215, 207, 0.18);
   --hero-b: rgba(110, 200, 154, 0.12);
 
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.141 0.005 285.823);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.141 0.005 285.823);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.274 0.006 286.033);
-  --input: oklch(0.274 0.006 286.033);
-  --ring: oklch(0.442 0.017 285.786);
+  /* LocalVault — dark (true-black surfaces, warm gold accent) */
+  --background: #000000;
+  --foreground: #f4f4f4;
+  --card: #0a0a0a;
+  --card-foreground: #f4f4f4;
+  --popover: #0a0a0a;
+  --popover-foreground: #f4f4f4;
+  --primary: #e5b567;
+  --primary-foreground: #1a1408;
+  --secondary: #171717;
+  --secondary-foreground: #f4f4f4;
+  --muted: #0a0a0a;
+  --muted-foreground: #8c8c8c;
+  --accent: #171717;
+  --accent-foreground: #f4f4f4;
+  --destructive: #e0715c;
+  --destructive-foreground: #1a1408;
+  --border: #1d1d1d;
+  --border-strong: #2c2c2c;
+  --input: #1d1d1d;
+  --ring: #e5b567;
+
+  --accent-soft: rgba(229, 181, 103, 0.12);
+  --accent-border: rgba(229, 181, 103, 0.42);
+  --success: #7bc894;
+  --warning: #e5a93c;
+
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.274 0.006 286.033);
-  --sidebar-ring: oklch(0.442 0.017 285.786);
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #f4f4f4;
+  --sidebar-primary: #e5b567;
+  --sidebar-primary-foreground: #1a1408;
+  --sidebar-accent: #171717;
+  --sidebar-accent-foreground: #f4f4f4;
+  --sidebar-border: #1d1d1d;
+  --sidebar-ring: #e5b567;
 }
 
 @theme inline {
-  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -136,8 +154,13 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-border: var(--accent-border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
