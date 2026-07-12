@@ -6,7 +6,9 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { Toaster } from "#/components/ui/index.ts";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
+import { Provider } from "../integrations/tanstack-query/root-provider";
 import appCss from "../styles.css?url";
 
 interface MyRouterContext {
@@ -40,6 +42,9 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  // Same per-request client the router holds in context (see getRouter).
+  const { queryClient } = Route.useRouteContext();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -47,7 +52,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="font-sans antialiased wrap-anywhere selection:bg-[rgba(79,184,178,0.24)]">
-        {children}
+        <Provider queryClient={queryClient}>{children}</Provider>
+        {/* App-wide toast portal — call toast() from anywhere */}
+        <Toaster position="top-center" richColors />
         <TanStackDevtools
           config={{
             position: "bottom-right",

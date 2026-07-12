@@ -14,7 +14,7 @@ function AuthHeading({
 }) {
   return (
     <div className="mb-6 flex flex-col items-center gap-y-2">
-      <LVLogo size={26} />
+      <LVLogo size={26} withWord={false} />
       <h1 className="text-4xl font-semibold tracking-[-0.02em] text-balance">
         {title}
       </h1>
