@@ -112,7 +112,9 @@ func generateRandomToken() (string, error) {
 		return "", err
 	}
 
-	return base64.RawStdEncoding.EncodeToString(b), nil
+	// URL-safe alphabet (-, _) so tokens survive email links / query strings —
+	// standard base64's + and / get mangled (+ decodes to a space in a query).
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 // sha25Hash hashes a token = we store the hash, never the raw token, so leaked DB can't reuse tokens
@@ -192,7 +194,7 @@ func (s *Service) Signup(ctx context.Context, req SignupRequest) (string, error)
 	if err != nil {
 		return  "", apperror.ErrInternal
 	}
-
+	fmt.Println(token)
 	s.Store.CreateEmailVerification(ctx, &EmailVerification{
 		ID: 		id.Generate("evr_", 12),
 		UserID: 	user.ID,
@@ -202,7 +204,7 @@ func (s *Service) Signup(ctx context.Context, req SignupRequest) (string, error)
 	})
 
 	// Build the link and enqueue the email - a queue hiccup must not fail signup
-	verifyURL := fmt.Sprintf("%s/verify-email?token=%s", s.cfg.FrontendURL, token)
+	verifyURL := fmt.Sprintf("%s/auth/verify-email?token=%s", s.cfg.FrontendURL, token)
 	job := email.EmailJob{
 		Kind: email.KindVerification,
 		Name: user.Name,
@@ -309,24 +311,20 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 }
 
 // ---------------------- Email verification ------------------
-func (s *Service) VerifyEmail(ctx context.Context, req VerifyEmailRequest) (*LoginResponse, error) {
-	ev, err := s.Store.FindEmailVerificationByHash(ctx, sha256Hash(req.Token))
+func (s *Service) VerifyEmail(ctx context.Context, token string) error {
+	fmt.Println(sha256Hash(token))
+	ev, err := s.Store.FindEmailVerificationByHash(ctx, sha256Hash(token))
 	if err != nil {
-		return nil, apperror.ErrInternal
+		return apperror.ErrInternal
 	}
 	if ev == nil {
-		return nil, apperror.New(400, "invalid or expired verification token")
+		return apperror.New(400, "invalid or expired verification token")
 	}
 
-	// Mark verified + auto-login
+	// Mark verified only — no auto-login, the user logs in themselves
 	s.Store.UpdateUser(ctx, ev.UserID, bson.M{"email_verified": true, "updated_at": time.Now()})
 	s.Store.DeleteEmailVerification(ctx, ev.ID)
-
-	user, err := s.Store.FindUserByID(ctx, ev.UserID)
-	if err != nil || user == nil {
-		return nil, apperror.ErrInternal
-	}
-	return s.createSessionAndTokens(ctx, user, "", "", "")
+	return nil
 }
 
 // ForgotPassword always returns success — prevents attackers from discovering which emails exist

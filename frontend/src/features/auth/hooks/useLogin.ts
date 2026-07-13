@@ -11,7 +11,7 @@ export function useLogin() {
 
   return useMutation<ApiResponse<LoginResult>, Error, LoginInput>({
     mutationFn: (input) => authService.login(input),
-    mutationKey: AUTH_KEYS.all,
+    mutationKey: AUTH_KEYS.login(),
     onSuccess: (res) => {
       if (!res.success) {
         throw new Error(res.message);

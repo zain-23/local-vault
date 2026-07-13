@@ -45,10 +45,6 @@ type RefreshResponse struct {
 	AccessToken string `json:"access_token"`
 }
 
-type VerifyEmailRequest struct {
-	Token string `json:"token"`
-}
-
 type ForgotPasswordRequest struct {
 	Email string `json:"email"`
 }

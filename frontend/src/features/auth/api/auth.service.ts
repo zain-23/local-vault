@@ -33,9 +33,11 @@ class AuthService {
     return this.client.post<null>("/auth/logout");
   }
 
-  // Returns the token bundle in the body (server does not set cookies here).
+  // Message-only: token rides in the query, server verifies and returns no body.
   verifyEmail(token: string) {
-    return this.client.post<AuthTokens>("/auth/verify-email", { token });
+    return this.client.post<null>("/auth/verify-email", undefined, {
+      params: { token },
+    });
   }
 
   forgotPassword(email: string) {

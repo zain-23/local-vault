@@ -5,7 +5,7 @@ const FOOTER_LINKS = ["Privacy", "Terms", "Security"] as const;
 
 function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid min-h-svh bg-background text-foreground lg:grid-cols-[1.1fr_1fr]">
+    <div className="grid min-h-svh bg-background text-foreground lg:grid-cols-[1.3fr_1fr]">
       <div className="hidden lg:block">
         <AuthBrandPanel />
       </div>

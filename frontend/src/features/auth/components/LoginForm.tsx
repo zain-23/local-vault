@@ -85,7 +85,7 @@ function LoginForm() {
             type="submit"
             size="lg"
             className="w-full"
-            disabled={isPending}
+            isLoading={isPending}
           >
             Log in
           </Button>

@@ -11,3 +11,5 @@ export * from "./Separator";
 export * from "./Sonner";
 export * from "./Switch";
 export * from "./Tooltip";
+export * from "./Spinner";
+export * from "./StatusMessage";

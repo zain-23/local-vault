@@ -1,7 +1,6 @@
 import { Github, Link2, Lock } from "lucide-react";
 
 import { LVLogo } from "#/components/shared/LVLogo.tsx";
-
 import { BrandTerminal } from "./BrandTerminal.tsx";
 
 // Trust chips shown under the terminal signature.

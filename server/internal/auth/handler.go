@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -152,20 +153,18 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 	return response.Success(c, nil, fiber.StatusOK, "logged out")
 }
 
-// VerifyEmail handles POST /api/v1/auth/verify-email
+// VerifyEmail handles POST /api/v1/auth/verify-email?token=xxx
 func (h *Handler) VerifyEmail(c *fiber.Ctx) error {
-	var req VerifyEmailRequest
-	if err := c.BodyParser(&req); err != nil {
-		return apperror.ErrInvalidBody
+	// Token comes from the query string, not the body — it's a value from the email link
+	token := c.Query("token")
+	fmt.Println(token)
+	if token == "" {
+		return apperror.New(fiber.StatusBadRequest, "verification token is missing")
 	}
-	if msg := validate.Struct(req); msg != "" {
-		return apperror.New(400, msg)
-	}
-	resp, err := h.service.VerifyEmail(c.UserContext(), req)
-	if err != nil {
+	if err := h.service.VerifyEmail(c.UserContext(), token); err != nil {
 		return err
 	}
-	return response.Success(c, resp, fiber.StatusOK, "email verified")
+	return response.Success(c, nil, fiber.StatusOK, "email verified")
 }
 
 // ForgotPassword handles POST /api/v1/auth/forgot-password
