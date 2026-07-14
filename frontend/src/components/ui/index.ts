@@ -13,3 +13,4 @@ export * from "./Switch";
 export * from "./Tooltip";
 export * from "./Spinner";
 export * from "./StatusMessage";
+export * from "./Tabs";

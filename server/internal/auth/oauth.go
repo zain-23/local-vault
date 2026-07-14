@@ -20,6 +20,7 @@ type OAuthHandler struct {
 	service 	*Service
 	config		map[string]*oauth2.Config
 	frontend	string
+	cfg			config.Config
 }
 
 func NewOAuthHandler(service *Service, cfg config.Config) *OAuthHandler {
@@ -35,6 +36,7 @@ func NewOAuthHandler(service *Service, cfg config.Config) *OAuthHandler {
 			},
 		},
 		frontend: cfg.FrontendURL,
+		cfg: cfg,
 	}
 }
 
@@ -79,22 +81,22 @@ func (h *OAuthHandler) HandleCallback(ctx *fiber.Ctx) error {
 
 	// verify state matches cookie - prevent CSRF attacks
 	if ctx.Cookies("oauth_state") != ctx.Query("state") {
-		return ctx.Redirect(h.frontend + "/login?error=invalid+state")
+		return ctx.Redirect(h.frontend + "/auth/login?error=invalid+state")
 	}
 
 	// Clear state cookie - one-time use
 	ctx.Cookie(&fiber.Cookie{Name: "oauth_state", Value: "", MaxAge: -1})
 
-	// Exchange authorization code for access token - code is one time-use
-	token, err := authCfg.Exchange(context.TODO(), ctx.Query("state"))
+	// Exchange the one-time authorization CODE for an access token.
+	token, err := authCfg.Exchange(context.TODO(), ctx.Query("code"))
 	if err != nil {
-		return ctx.Redirect(h.frontend + "/login?error=oauth+failed")
+		return ctx.Redirect(h.frontend + "/auth/login?error=oauth+failed")
 	}
 
 	// fetch use info from provider's API using the token
 	oauthUser, err := fetchOAuthUser(provider, authCfg, token)
 	if err != nil {
-		return ctx.Redirect(h.frontend + "/login?error=profile+failed")
+		return ctx.Redirect(h.frontend + "/auth/login?error=profile+failed")
 	}
 
 	// Find or create OAuth user in DB
@@ -103,22 +105,19 @@ func (h *OAuthHandler) HandleCallback(ctx *fiber.Ctx) error {
 	)
 
 	if err != nil {
-		return ctx.Redirect(h.frontend + "/login?error=account+failed")
+		return ctx.Redirect(h.frontend + "/auth/login?error=account+failed")
 	}
 
 	// create session and token
 	loginResp, err := h.service.OAuthLogin(ctx.UserContext(), user, ctx.IP(), ctx.Get("User-Agent"))
 
 	if err != nil {
-		return ctx.Redirect(h.frontend + "/login?error=session+failed")
+		return ctx.Redirect(h.frontend + "/auth/login?error=session+failed")
 	}
 	
-	redirectURL := fmt.Sprintf(
-		"%s/oauth/callback?access_token=%s&refresh_token=%s",
-		h.frontend, loginResp.AccessToken, loginResp.RefreshToken,
-	)
-	// Redirect to frontend with tokens
-	return ctx.Redirect(redirectURL)
+	// Set the same HttpOnly session cookies as password login, then land on the app.
+	setAuthCookies(ctx, h.cfg, loginResp)
+	return ctx.Redirect(h.frontend + "/")
 }
 
 // ----------------- Helper -------------

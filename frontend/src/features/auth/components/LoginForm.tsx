@@ -89,13 +89,6 @@ function LoginForm() {
           >
             Log in
           </Button>
-
-          <Link
-            to="/auth/magic-link"
-            className="text-center text-xs text-muted-foreground hover:text-foreground"
-          >
-            Email me a magic link instead →
-          </Link>
         </FieldGroup>
       </form>
 

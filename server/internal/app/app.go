@@ -15,8 +15,10 @@ import (
 	"github.com/zain-23/local-vault/server/internal/auth"
 	"github.com/zain-23/local-vault/server/internal/common/apperror"
 	"github.com/zain-23/local-vault/server/internal/common/jwt"
+	"github.com/zain-23/local-vault/server/internal/common/middleware"
 	"github.com/zain-23/local-vault/server/internal/config"
 	"github.com/zain-23/local-vault/server/internal/email"
+	"github.com/zain-23/local-vault/server/internal/workspace"
 )
 
 const serverVersion = "3.0.0"
@@ -100,16 +102,23 @@ func New(cfg config.Config) (*App, error) {
 	// ------------ Wire Auth domain ----------
 	// Create shared services first
 	jwtService := jwt.NewService(cfg.JWTSecret, cfg.JWTAccessExpiry)
-
 	// Create auth domain: store -> service -> handler
 	authStore := auth.NewStore(db)
 	authService := auth.NewService(authStore, jwtService, publisher, cfg)
 	authHandler := auth.NewHandler(authService, cfg)
 	// OAuth
 	oauthHandler := auth.NewOAuthHandler(authService, cfg)
-
 	// Register all auth routes on the fiber app
 	auth.RegisterRoutes(app, authHandler, oauthHandler)
+
+
+	// ------------ Wire Workspace domain ----------
+	authMW := middleware.Auth(jwtService)
+	// workspace domain: store -> service -> handler
+	wsStore := workspace.NewStore(db)
+	wsService := workspace.NewService(wsStore)
+	wsHandler := workspace.NewHandler(wsService)
+	workspace.RegisterRoutes(app, wsHandler, wsStore, authMW)
 
 	return &App{Fiber: app, DB: db, Publisher: publisher, JWTService: jwtService}, nil
 }

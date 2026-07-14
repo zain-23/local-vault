@@ -56,6 +56,11 @@ class AuthService {
   verifyMagicLink(token: string) {
     return this.client.post<AuthTokens>("/auth/magic-link/verify", { token });
   }
+
+  // OAuth login
+  oauthUrl(provider: "google" = "google") {
+    return `${import.meta.env.VITE_API_URL}/auth/oauth/${provider}`;
+  }
 }
 
 // Shared singleton for app use; construct with a custom client in tests.

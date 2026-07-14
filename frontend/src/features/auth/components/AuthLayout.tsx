@@ -5,17 +5,12 @@ const FOOTER_LINKS = ["Privacy", "Terms", "Security"] as const;
 
 function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid min-h-svh bg-background text-foreground lg:grid-cols-[1.3fr_1fr]">
+    <div className="grid min-h-svh bg-background text-foreground lg:grid-cols-[1.1fr_1fr]">
       <div className="hidden lg:block">
         <AuthBrandPanel />
       </div>
 
       <div className="relative flex flex-col overflow-hidden px-6 py-8 sm:px-12">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-32 -right-16 size-96 rounded-full bg-accent-soft blur-[100px]"
-        />
-
         <header className="relative flex items-center justify-end">
           <button
             type="button"

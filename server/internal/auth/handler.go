@@ -25,35 +25,36 @@ func NewHandler(service *Service, cfg config.Config) *Handler {
 }
 
 // ---------------------------- Cookies Helper ----------------
+// Package-level so both Handler (password login) and OAuthHandler reuse them.
 // setAccessCookie writes the short-lived access token as an HttpOnly cookie.
-func (h *Handler) setAccessCookie(c *fiber.Ctx, token string) {
+func setAccessCookie(c *fiber.Ctx, cfg config.Config, token string) {
 	c.Cookie(&fiber.Cookie{
 			Name:     "access_token",
 			Value:    token,
 			Path:     "/",                                 // sent to every route
 			HTTPOnly: true,
-			Secure:   h.cfg.Env == "production",
-			SameSite: "Lax",                          
-			Expires:  time.Now().Add(h.cfg.JWTAccessExpiry),
+			Secure:   cfg.Env == "production",
+			SameSite: "Lax",
+			Expires:  time.Now().Add(cfg.JWTAccessExpiry),
 	})
 }
 
 // setRefreshCookie writes the long-lived refresh token, scoped to the auth routes only.
-func (h *Handler) setRefreshCookie(c *fiber.Ctx, token string) {
+func setRefreshCookie(c *fiber.Ctx, cfg config.Config, token string) {
 	c.Cookie(&fiber.Cookie{
 			Name:     "refresh_token",
 			Value:    token,
 			Path:     "/api/v1/auth",                      // narrow sco
 			HTTPOnly: true,
-			Secure:   h.cfg.Env == "production",
+			Secure:   cfg.Env == "production",
 			SameSite: "Lax",
-			Expires:  time.Now().Add(h.cfg.JWTRefreshExpiry),
+			Expires:  time.Now().Add(cfg.JWTRefreshExpiry),
 	})
 }
 
-func (h *Handler) setAuthCookies(c *fiber.Ctx, lr *LoginResponse) {
-	h.setAccessCookie(c, lr.AccessToken)
-	h.setRefreshCookie(c, lr.RefreshToken)
+func setAuthCookies(c *fiber.Ctx, cfg config.Config, lr *LoginResponse) {
+	setAccessCookie(c, cfg, lr.AccessToken)
+	setRefreshCookie(c, cfg, lr.RefreshToken)
 }
 
 func (h *Handler) clearAuthCookies(c *fiber.Ctx) {
@@ -120,7 +121,7 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		}, fiber.StatusOK, "2Fa required")
 	}
 
-	h.setAuthCookies(c, result.Tokens)
+	setAuthCookies(c, h.cfg, result.Tokens)
 	return response.Success(c, result.Tokens.User, fiber.StatusOK, "login successful")
 }
 
@@ -134,7 +135,7 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	h.setAccessCookie(c, resp.AccessToken)
+	setAccessCookie(c, h.cfg, resp.AccessToken)
 	return response.Success(c, resp, fiber.StatusOK, "token refreshed")
 }
 
