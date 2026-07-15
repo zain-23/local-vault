@@ -101,8 +101,10 @@ func New(cfg config.Config) (*App, error) {
 	})
 
 	// ------------ Wire Auth domain ----------
-	// Create shared services first
+	// Create shared services first + authMW
 	jwtService := jwt.NewService(cfg.JWTSecret, cfg.JWTAccessExpiry)
+	authMW := middleware.Auth(jwtService)
+
 	// Create auth domain: store -> service -> handler
 	authStore := auth.NewStore(db)
 	authService := auth.NewService(authStore, jwtService, publisher, cfg)
@@ -110,11 +112,9 @@ func New(cfg config.Config) (*App, error) {
 	// OAuth
 	oauthHandler := auth.NewOAuthHandler(authService, cfg)
 	// Register all auth routes on the fiber app
-	auth.RegisterRoutes(app, authHandler, oauthHandler)
-
+	auth.RegisterRoutes(app, authHandler, oauthHandler, authMW)
 
 	// ------------ Wire Workspace domain ----------
-	authMW := middleware.Auth(jwtService)
 	// workspace domain: store -> service -> handler
 	wsStore := workspace.NewStore(db)
 	wsService := workspace.NewService(wsStore)

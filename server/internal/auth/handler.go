@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/zain-23/local-vault/server/internal/common/apperror"
+	"github.com/zain-23/local-vault/server/internal/common/middleware"
 	"github.com/zain-23/local-vault/server/internal/common/response"
 	"github.com/zain-23/local-vault/server/internal/common/validate"
 	"github.com/zain-23/local-vault/server/internal/config"
@@ -123,6 +124,18 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 
 	setAuthCookies(c, h.cfg, result.Tokens)
 	return response.Success(c, result.Tokens.User, fiber.StatusOK, "login successful")
+}
+
+// Me handles GET /api/v1/auth/me â returns the caller's own account.
+func (h *Handler) Me(c *fiber.Ctx) error {
+	authUser := middleware.GetUser(c)
+	
+	user, err := h.service.Me(c.UserContext(), authUser.ID)
+	if err != nil {
+		return err
+	}
+
+	return response.Success(c, user, fiber.StatusOK, "user retrieved")
 }
 
 // RefreshToken handles POST /api/v1/auth/refresh

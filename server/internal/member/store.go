@@ -2,6 +2,7 @@ package member
 
 import (
 	"context"
+	"regexp"
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -92,15 +93,92 @@ func (s *Store) MembershipExists(ctx context.Context, workspaceID, userID string
 	return true, nil
 }
 
-// ListMemberships returns every membership row for a workspace (for the members list).
-func (s *Store) ListMemberships(ctx context.Context, workspaceID string) ([]Membership, error) {
-	cursor, err := s.memberships.Find(ctx, bson.M{"workspace_id": workspaceID})
-	if err != nil {
-		return nil, err
+// ListMembersPaginated returns one page of members for a workspace plus the total
+// count after filtering. It runs a single aggregation: match memberships (+ role),
+// $lookup the user doc for the searchable/display fields, optionally $match the
+// search, then $facet to get the page and the count in one round-trip.
+func (s *Store) ListMembersPaginated(ctx context.Context, workspaceID string, q ListMembersQuery) ([]MemberResponse, int64, error) {
+	// Stage 1 — membership-level match. Runs before $lookup so it can use the
+	// memberships index; role is added only when a filter was supplied.
+	match := bson.M{"workspace_id": workspaceID}
+	if q.Role != "" {
+		match["role"] = q.Role
 	}
-	var members []Membership
-	err = cursor.All(ctx, &members) // read all matching docs into the slice
-	return members, err
+
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: match}},
+		// join each membership to its user doc (user_id -> users._id) for name/email/avatar
+		{{Key: "$lookup", Value: bson.M{
+			"from":         "users",
+			"localField":   "user_id",
+			"foreignField": "_id",
+			"as":           "user",
+		}}},
+		// $lookup yields an array; unwind to a single embedded user object
+		{{Key: "$unwind", Value: "$user"}},
+	}
+
+	// Stage 2 — optional search on the joined user fields (name OR email).
+	// QuoteMeta escapes regex metacharacters so user input can't alter the query.
+	if q.Search != "" {
+		rx := bson.M{"$regex": regexp.QuoteMeta(q.Search), "$options": "i"} // "i" = case-insensitive
+		pipeline = append(pipeline, bson.D{{Key: "$match", Value: bson.M{
+			"$or": bson.A{
+				bson.M{"user.name": rx},
+				bson.M{"user.email": rx},
+			},
+		}}})
+	}
+
+	// Stage 3 — $facet fans the same filtered stream into the page and its count.
+	pipeline = append(pipeline, bson.D{{Key: "$facet", Value: bson.M{
+		// "items": sort, then skip/limit to the requested page, then reshape to MemberResponse
+		"items": bson.A{
+			bson.M{"$sort": bson.M{"joined_at": 1}}, // 1 = ascending (oldest first)
+			bson.M{"$skip": q.Skip()},
+			bson.M{"$limit": q.Limit},
+			bson.M{"$project": bson.M{
+				"_id":        0, // drop the membership _id; the client keys off user_id
+				"user_id":    "$user_id",
+				"name":       "$user.name",
+				"email":      "$user.email",
+				"avatar_url": "$user.avatar_url",
+				"role":       "$role",
+				"joined_at":  "$joined_at",
+			}},
+		},
+		// "total": count of all matching rows (ignores skip/limit)
+		"total": bson.A{bson.M{"$count": "count"}},
+	}}})
+
+	cursor, err := s.memberships.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// $facet always emits exactly one document shaped like this.
+	var facet []struct {
+		Items []MemberResponse `bson:"items"`
+		Total []struct {
+			Count int64 `bson:"count"`
+		} `bson:"total"`
+	}
+	if err := cursor.All(ctx, &facet); err != nil {
+		return nil, 0, err
+	}
+	if len(facet) == 0 {
+		return []MemberResponse{}, 0, nil
+	}
+
+	items := facet[0].Items
+	if items == nil {
+		items = []MemberResponse{} // never return nil — the client expects an array
+	}
+	var total int64
+	if len(facet[0].Total) > 0 { // the "total" array is empty when nothing matched
+		total = facet[0].Total[0].Count
+	}
+	return items, total, nil
 }
 
 // UpdateMemberRole changes one member's role ($set leaves other fields untouched).

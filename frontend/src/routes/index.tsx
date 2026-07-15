@@ -1,7 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/")({ component: App });
-
-function App() {
-	return <></>;
-}
+// Root lands on the members page for now (the first built protected screen).
+export const Route = createFileRoute("/")({
+	beforeLoad: () => {
+		throw redirect({ to: "/members" });
+	},
+});

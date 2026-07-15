@@ -8,6 +8,7 @@ import (
 
 	"github.com/zain-23/local-vault/server/internal/common/apperror"
 	"github.com/zain-23/local-vault/server/internal/common/id"
+	"github.com/zain-23/local-vault/server/internal/common/pagination"
 	"github.com/zain-23/local-vault/server/internal/config"
 	"github.com/zain-23/local-vault/server/internal/email"
 )
@@ -56,13 +57,18 @@ func (s *Service) enrich(ctx context.Context, mems []Membership) ([]MemberRespon
 	return out, nil
 }
 
-// List returns every member of a workspace with their display fields and role.
-func (s *Service) List(ctx context.Context, workspaceID string) ([]MemberResponse, error) {
-	mems, err := s.store.ListMemberships(ctx, workspaceID)
+// List returns one page of a workspace's members (with display fields), filtered
+// by role/search, plus the pagination meta. The store's aggregation does the
+// user join, so enrich() isn't needed on this path.
+func (s *Service) List(ctx context.Context, workspaceID string, q ListMembersQuery) (*pagination.Page[MemberResponse], error) {
+	items, total, err := s.store.ListMembersPaginated(ctx, workspaceID, q)
 	if err != nil {
 		return nil, apperror.ErrInternal
 	}
-	return s.enrich(ctx, mems)
+	return &pagination.Page[MemberResponse]{
+		Items: items,
+		Meta:  pagination.NewMeta(q.Params, total),
+	}, nil
 }
 
 // Invite creates a pending invite and enqueues the invite email.

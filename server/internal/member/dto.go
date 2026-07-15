@@ -1,6 +1,19 @@
 package member
 
-import "time"
+import (
+	"time"
+
+	"github.com/zain-23/local-vault/server/internal/common/pagination"
+)
+
+// ListMembersQuery is the GET /members query string. Pagination (page/limit) is
+// embedded so QueryParser + the validator handle it; role/search are optional
+// filters — empty means "no filter", hence `omitempty` rather than `required`.
+type ListMembersQuery struct {
+	pagination.Params
+	Role   string `query:"role" validate:"omitempty,oneof=owner admin member"`
+	Search string `query:"search"`
+}
 
 // InviteRequest is the POST /members/invite body. `oneof` blocks inviting an owner.
 type InviteRequest struct {
@@ -18,14 +31,16 @@ type ChangeRoleRequest struct {
 	Role string `json:"role" validate:"required,oneof=admin member"`
 }
 
-// MemberResponse is one row of the members list — membership joined with user display fields.
+// MemberResponse is one row of the members list — membership joined with user
+// display fields. bson tags let the list aggregation's $project decode straight
+// into this struct; enrich() builds it field-by-field so it's unaffected.
 type MemberResponse struct {
-	UserID    string    `json:"user_id"`
-	Name      string    `json:"name"`
-	Email     string    `json:"email"`
-	AvatarURL string    `json:"avatar_url,omitempty"`
-	Role      string    `json:"role"`
-	JoinedAt  time.Time `json:"joined_at"`
+	UserID    string    `bson:"user_id" json:"user_id"`
+	Name      string    `bson:"name" json:"name"`
+	Email     string    `bson:"email" json:"email"`
+	AvatarURL string    `bson:"avatar_url" json:"avatar_url,omitempty"`
+	Role      string    `bson:"role" json:"role"`
+	JoinedAt  time.Time `bson:"joined_at" json:"joined_at"`
 }
 
 // InviteResponse is one pending invite — never includes the token.

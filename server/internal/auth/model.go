@@ -12,9 +12,10 @@ type User struct {
 	OAuthID          string    `bson:"oauth_id" json:"-"`                              // provider's user ID, hidden from API
 	AvatarURL        string    `bson:"avatar_url" json:"avatar_url,omitempty"`
 	EmailVerified    bool      `bson:"email_verified" json:"email_verified"`
-	TwoFactorEnabled bool     `bson:"two_factor_enabled" json:"two_factor_enabled"`
-	TwoFactorSecret  string   `bson:"two_factor_secret" json:"-"`                     // TOTP secret, never expose
-	BackupCodes      []string `bson:"backup_codes" json:"-"`                          // hashed backup codes
+	TwoFactorEnabled bool      `bson:"two_factor_enabled" json:"two_factor_enabled"`
+	Onboarded		 bool	   `bson:"onboarded" json:"onboarded"`
+	TwoFactorSecret  string    `bson:"two_factor_secret" json:"-"`                     // TOTP secret, never expose
+	BackupCodes      []string  `bson:"backup_codes" json:"-"`                          // hashed backup codes
 	CreatedAt        time.Time `bson:"created_at" json:"created_at"`
 	UpdatedAt        time.Time `bson:"updated_at" json:"updated_at"`
 }

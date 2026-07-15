@@ -182,9 +182,11 @@ func (s *Service) Signup(ctx context.Context, req SignupRequest) (string, error)
 		Name: 			req.Name,
 		PasswordHash: 	passwordHash,
 		EmailVerified: 	false,
+		Onboarded: 		false,
 		CreatedAt: 		now,
 		UpdatedAt: 		now,	
 	}
+
 	if err := s.Store.CreateUser(ctx, user); err != nil {
 		return "", apperror.ErrInternal
 	}
@@ -302,6 +304,22 @@ func (s *Service) RefreshToken(ctx context.Context, req RefreshRequest) (*Refres
 		return nil, apperror.ErrInternal
 	}
 	return &RefreshResponse{AccessToken: accessToken}, nil
+}
+
+// ----------------- Me --------------------
+// Me returns the full account of the currently authenticated user.
+// userID comes from the validated JWT (not the request body) â a user can only fetch themselves.
+func (s *Service) Me(ctx context.Context, userID string) (*User, error) {
+	user, err := s.Store.FindUserByID(ctx, userID)
+	if err != nil {
+		return nil, apperror.ErrInternal
+	}
+
+	if user == nil {
+		return nil, apperror.New(404, "ser not found")
+	}
+
+	return user, nil
 }
 
 // ------------------------ Logout -----------------

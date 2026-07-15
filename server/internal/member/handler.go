@@ -1,6 +1,8 @@
 package member
 
 import (
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/zain-23/local-vault/server/internal/common/apperror"
@@ -18,9 +20,19 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-// List handles GET /api/v1/workspaces/:wid/members
+// List handles GET /api/v1/workspaces/:wid/members?page=&limit=&role=&search=
 func (h *Handler) List(c *fiber.Ctx) error {
-	resp, err := h.service.List(c.UserContext(), c.Params("wid"))
+	var q ListMembersQuery
+	if err := c.QueryParser(&q); err != nil { // decode the query string into the struct
+		return apperror.ErrInvalidBody
+	}
+	if msg := validate.Struct(q); msg != "" { // check page/limit bounds + role enum
+		return apperror.New(400, msg)
+	}
+	q.Normalize()                          // fill page/limit defaults (promoted from Params)
+	q.Search = strings.TrimSpace(q.Search) // ignore whitespace-only searches
+
+	resp, err := h.service.List(c.UserContext(), c.Params("wid"), q)
 	if err != nil {
 		return err
 	}

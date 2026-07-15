@@ -2,7 +2,7 @@ package auth
 
 import "github.com/gofiber/fiber/v2"
 
-func RegisterRoutes(app *fiber.App, h *Handler, oauth *OAuthHandler) {
+func RegisterRoutes(app *fiber.App, h *Handler, oauth *OAuthHandler, authMW fiber.Handler) {
 	// app.Group creates a routes prefix - all routes inside get "/api/v1/auth"
 	auth := app.Group("api/v1/auth")
 
@@ -16,6 +16,8 @@ func RegisterRoutes(app *fiber.App, h *Handler, oauth *OAuthHandler) {
 	auth.Post("/magic-link", h.SendMagicLink)
 	auth.Post("/magic-link/verify", h.VerifyMagicLink)
 
+	// Protected: authMW runs first and 401s if the token is missing/invalid.
+	auth.Get("/me", authMW, h.Me)
 	// OAuth — :provider is a URL param, accessed via c.Params("provider")
 	auth.Get("/oauth/:provider", oauth.RedirectToProvider)
 	auth.Get("/oauth/:provider/callback", oauth.HandleCallback)
