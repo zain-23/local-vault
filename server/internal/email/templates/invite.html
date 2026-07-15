@@ -1,0 +1,25 @@
+{{define "content"}}
+<p style="color: #333333">Hello,</p>
+<p style="color: #333333">
+  You've been invited to join the <strong>{{.Name}}</strong> workspace on
+  LocalVault.
+</p>
+<p style="color: #333333">
+  Sign in (or create an account with this email address) and accept the invite:
+</p>
+<p>
+  <a
+    href="{{.URL}}"
+    style="
+      display: inline-block;
+      background: #111111;
+      color: #ffffff;
+      padding: 12px 20px;
+      border-radius: 6px;
+      text-decoration: none;
+    "
+    >Accept invite</a
+  >
+</p>
+<p style="color: #999999; font-size: 12px">This invite expires in 7 days.</p>
+{{end}}

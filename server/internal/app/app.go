@@ -18,6 +18,7 @@ import (
 	"github.com/zain-23/local-vault/server/internal/common/middleware"
 	"github.com/zain-23/local-vault/server/internal/config"
 	"github.com/zain-23/local-vault/server/internal/email"
+	"github.com/zain-23/local-vault/server/internal/member"
 	"github.com/zain-23/local-vault/server/internal/workspace"
 )
 
@@ -119,6 +120,13 @@ func New(cfg config.Config) (*App, error) {
 	wsService := workspace.NewService(wsStore)
 	wsHandler := workspace.NewHandler(wsService)
 	workspace.RegisterRoutes(app, wsHandler, wsStore, authMW)
+
+	// ------------ Wire Member domain ----------
+	memberStore := member.NewStore(db)
+	memberService := member.NewService(memberStore, publisher, cfg)
+	memberHandler := member.NewHandler(memberService)
+	// store is passed too — RequireRole uses it to look up the caller's role.
+	member.RegisterRoutes(app, memberHandler, memberStore, authMW)
 
 	return &App{Fiber: app, DB: db, Publisher: publisher, JWTService: jwtService}, nil
 }
