@@ -22,6 +22,10 @@ export function getContext() {
       onSuccess: (_data, _var, _ctx, mutation) => {
         const keys = mutation.meta?.invalidates;
         if (!keys) return;
+        // Only marks stale. Queries hydrated from SSR carry no queryFn, and the
+        // ones read by route guards have no observers to borrow one from, so a
+        // refetch here would reject with "Missing queryFn" and be swallowed.
+        // Anything needing fresh data before navigating must fetchQuery itself.
         return Promise.all(
           keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
         );
