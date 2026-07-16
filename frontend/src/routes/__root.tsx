@@ -54,7 +54,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body className="font-sans antialiased wrap-anywhere selection:bg-[rgba(79,184,178,0.24)]">
         <Provider queryClient={queryClient}>{children}</Provider>
         {/* App-wide toast portal — call toast() from anywhere */}
-        <Toaster position="top-center" richColors />
+        <Toaster position="bottom-right" richColors />
         <TanStackDevtools
           config={{
             position: "bottom-right",

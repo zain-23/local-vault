@@ -1,12 +1,18 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AppSidebar } from "#/components/layout/AppSidebar.tsx";
 import { GlobalModalProvider } from "#/components/shared/GlobalModalProvider.tsx";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "#/components/ui";
+import { meQuery } from "#/features/auth/api";
 
-// Protected app shell: sidebar + content outlet + the global modal host.
-// TODO(auth): add a beforeLoad guard that redirects unauthenticated users to
-// /auth/login once the frontend has a session/me query to check against.
 export const Route = createFileRoute("/_app")({
+  beforeLoad: async ({ context }) => {
+    const user = await context.queryClient.ensureQueryData(meQuery);
+    if (!user) {
+      // stash where they were headed so login can send them back
+      throw redirect({ to: "/auth/login" });
+    }
+    if (!user.onboarded) throw redirect({ to: "/onboarding" });
+  },
   component: AppLayout,
 });
 

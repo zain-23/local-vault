@@ -7,20 +7,18 @@ import { AUTH_KEYS, authService } from "#/features/auth/api";
 import type { ApiResponse } from "#/services/api";
 
 export function useSignup() {
-  const navigate = useNavigate();
+	const navigate = useNavigate();
 
-  return useMutation<ApiResponse<{}>, Error, SignupInput>({
-    mutationFn: (input) => authService.signup(input),
-    mutationKey: AUTH_KEYS.signup(),
-    onSuccess: (res) => {
-      if (!res.success) {
-        throw new Error(res.message);
-      }
-      toast.success(res.message);
-      navigate({ to: "/auth/verify-email" });
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
+	return useMutation<ApiResponse<string>, Error, SignupInput>({
+		mutationFn: (input) => authService.signup(input),
+		mutationKey: AUTH_KEYS.signup(),
+		// Failures throw from the api client — this only runs on a real signup.
+		onSuccess: (res) => {
+			toast.success(res.message);
+			navigate({ to: "/auth/verify-email" });
+		},
+		onError: (error) => {
+			toast.error(error.message);
+		},
+	});
 }

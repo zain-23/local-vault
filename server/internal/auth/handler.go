@@ -149,7 +149,7 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 		return err
 	}
 	setAccessCookie(c, h.cfg, resp.AccessToken)
-	return response.Success(c, resp, fiber.StatusOK, "token refreshed")
+	return response.Success(c, "", fiber.StatusOK, "token refreshed")
 }
 
 // Logout handles POST /api/v1/auth/logout

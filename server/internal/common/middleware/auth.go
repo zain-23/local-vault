@@ -18,18 +18,24 @@ type AuthUser struct {
 // Auth returns Fiber middleware that validates JWT tokens on protected routes
 func Auth(jwtService *jwt.Service) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		header := c.Get("Authorization")
-		if header == "" {
-			return apperror.New(401, "missing authorization header")
+		var token string
+		if header := c.Get("Authorization"); header != "" {
+			parts := strings.SplitN(header, " ", 2)
+			if len(parts) != 2 || parts[0] != "Bearer" {
+				return apperror.New(401, "invalid authorization format, use: Bearer <token>")
+			}
+			token = parts[1]
+		} else {
+			// fallback: the HTTPOnly cookie the web app recevies at login
+			token = c.Cookies("access_token")
 		}
 
-		parts := strings.SplitN(header, " ", 2)
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			return apperror.New(401, "invalid authorization format, use: Bearer <token>")
+		if token == "" {
+			return apperror.New(401, "missing authentication token")
 		}
 
 		// Validate the token — checks signature, expiry, and extracts claims
-		claims, err := jwtService.ValidateToken(parts[1])
+		claims, err := jwtService.ValidateToken(token)
 		if err != nil {
 			return apperror.New(401, "invalid or expired token")
 		}
