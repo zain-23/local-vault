@@ -17,6 +17,7 @@ import (
 	"github.com/zain-23/local-vault/server/internal/common/jwt"
 	"github.com/zain-23/local-vault/server/internal/common/middleware"
 	"github.com/zain-23/local-vault/server/internal/config"
+	"github.com/zain-23/local-vault/server/internal/device"
 	"github.com/zain-23/local-vault/server/internal/email"
 	"github.com/zain-23/local-vault/server/internal/member"
 	"github.com/zain-23/local-vault/server/internal/workspace"
@@ -128,5 +129,14 @@ func New(cfg config.Config) (*App, error) {
 	// store is passed too — RequireRole uses it to look up the caller's role.
 	member.RegisterRoutes(app, memberHandler, memberStore, authMW)
 
+
+	// ------------ Wire Device domain ----------
+	// Depends on authService (mints the CLI's session — one source of truth for
+	// tokens) and memberStore (verifies the approver belongs to the workspace).
+	deviceStore := device.NewStore(db)
+	deviceService := device.NewService(deviceStore, authService, memberStore, cfg)
+	deviceHandler := device.NewHandler(deviceService)
+	device.RegisterRoutes(app, deviceHandler, authMW)
+	
 	return &App{Fiber: app, DB: db, Publisher: publisher, JWTService: jwtService}, nil
 }

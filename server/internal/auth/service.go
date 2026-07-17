@@ -136,21 +136,46 @@ func (s *Service) createSessionAndTokens(ctx context.Context, user *User, device
 	}
 
 	now := time.Now()
-	s.Store.CreateSession(ctx, &Session{
+	if err := s.Store.CreateSession(ctx, &Session{
 		ID: id.Generate("ses_", 12),
 		IP: ip,
 		UserAgent: userAgent,
 		UserID: user.ID,
+		DeviceID: deviceID,
 		RefreshTokenHash: sha256Hash(refreshToken),
 		CreatedAt: now,
 		ExpiresAt: now.Add(s.cfg.JWTRefreshExpiry),
-	})
+	}); err != nil {
+		return nil, apperror.ErrInternal
+	}
 
 	return &LoginResponse{
 		AccessToken: accessToken,
 		RefreshToken: refreshToken,
 		User: *user,
 	}, nil
+}
+
+// IssueSession mints an access+refresh pair for an already-verified user.
+// The device domain calls this after a user approves a CLI login — there is no
+// password check here, because approval in an authenticated browser IS the proof.
+// Exported wrapper so session creation lives in exactly one place.
+func (s *Service) IssueSession(ctx context.Context, userID, deviceID, ip, userAgent string) (*LoginResponse, error) {
+	user, err := s.Store.FindUserByID(ctx, userID)
+	if err != nil {
+		return nil, apperror.ErrInternal
+	}
+	if user == nil {
+		return nil, apperror.New(401, "user not found")
+	}
+	return s.createSessionAndTokens(ctx, user, deviceID, ip, userAgent)
+}
+
+// RevokeDeviceSessions deletes every session belonging to a device.
+// Called when a device is removed, so revocation is immediate rather than
+// waiting up to 15 minutes for the access token to expire.
+func (s *Service) RevokeDeviceSessions(ctx context.Context, deviceID string) error {
+	return s.Store.DeleteSessionsByDeviceID(ctx, deviceID)
 }
 
 // verifyTOTP — placeholder until Account domain adds 2FA setup
@@ -299,7 +324,7 @@ func (s *Service) RefreshToken(ctx context.Context, req RefreshRequest) (*Refres
 		return nil, apperror.New(401, "user not found")
 	}
 
-	accessToken, err := s.jwt.GenerateAccessToken(user.ID, user.Email, "")
+	accessToken, err := s.jwt.GenerateAccessToken(user.ID, user.Email, session.DeviceID)
 	if err != nil {
 		return nil, apperror.ErrInternal
 	}

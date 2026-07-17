@@ -24,6 +24,7 @@ type User struct {
 type Session struct {
 	ID               string    `bson:"_id"`
 	UserID           string    `bson:"user_id"`
+	DeviceID		 string    `bson:"device_id,omitempty"`
 	RefreshTokenHash string    `bson:"refresh_token_hash"` // hash of refresh token, not the token itself
 	IP               string    `bson:"ip"`
 	UserAgent        string    `bson:"user_agent"`

@@ -108,6 +108,8 @@ func (s *Service) Invite(ctx context.Context, workspaceID, invitedBy string, req
 		return nil, apperror.ErrInternal
 	}
 
+	fmt.Println("TOKEN", rawToken)
+
 	now := time.Now()
 	inv := &Invite{
 		ID:          id.Generate("inv_", 12),
