@@ -18,23 +18,16 @@ type AuthIssuer interface {
 	RevokeDeviceSessions(ctx context.Context, deviceID string) error
 }
 
-// MembershipChecker reports whether a user belongs to a workspace.
-// *member.Store satisfies it.
-type MembershipChecker interface {
-	MembershipExists(ctx context.Context, workspaceID, userID string) (bool, error)
-}
-
 // Service holds the device domain's business logic.
 type Service struct {
 	Store   *Store
 	auth    AuthIssuer
-	members MembershipChecker
 	cfg     config.Config
 }
 
 // NewService wires the device domain — called once at startup.
-func NewService(store *Store, authSvc AuthIssuer, members MembershipChecker, cfg config.Config) *Service {
-	return &Service{Store: store, auth: authSvc, members: members, cfg: cfg}
+func NewService(store *Store, authSvc AuthIssuer, cfg config.Config) *Service {
+	return &Service{Store: store, auth: authSvc, cfg: cfg}
 }
 
 // Authorize starts a login attempt. Unauthenticated — anyone can call it, which is
@@ -129,28 +122,13 @@ func (s *Service) Decide(ctx context.Context, userCode string, req DecisionReque
 		return nil
 	}
 
-	// --- approve ---
-	if req.WorkspaceID == "" {
-		return apperror.New(400, "workspace_id is required to approve")
-	}
-
-	// The approver must belong to the workspace they're granting the CLI access to.
-	// Without this check any signed-in user could mint a device in any workspace.
-	member, err := s.members.MembershipExists(ctx, req.WorkspaceID, userID)
-	if err != nil {
-		return apperror.ErrInternal
-	}
-	if !member {
-		// 404, not 403 — matches RequireRole, which hides a workspace's existence
-		// rather than confirming it to a non-member.
-		return apperror.New(404, "workspace not found")
-	}
-
+      // --- approve ---
+      // No workspace, no membership check: approving just links the device to the
+      // account. Per-request RequireRole decides which workspace it may touch.
 	now := time.Now()
 	device := &Device{
 		ID:           id.Generate("dev_", 12),
 		UserID:       userID,
-		WorkspaceID:  req.WorkspaceID,
 		Name:         authReq.DeviceName,
 		Fingerprint:  authReq.Fingerprint,
 		IP:           authReq.IP,
@@ -164,7 +142,7 @@ func (s *Service) Decide(ctx context.Context, userCode string, req DecisionReque
 
 	// Stamp the request. Its status:pending filter is the guard against a double
 	// approve; if it lost the race we'd have an orphan device row, so clean up.
-	if err := s.Store.ApproveAuthRequest(ctx, authReq.ID, userID, req.WorkspaceID, device.ID); err != nil {
+	if err := s.Store.ApproveAuthRequest(ctx, authReq.ID, userID, device.ID); err != nil {
 		s.Store.DeleteDevice(ctx, device.ID)
 		return apperror.New(401, "device authorization request expired")
 	}
@@ -219,23 +197,14 @@ func (s *Service) Poll(ctx context.Context, req PollRequest, ip, userAgent strin
 		Status:       StatusApproved,
 		AccessToken:  tokens.AccessToken,
 		RefreshToken: tokens.RefreshToken,
-		WorkspaceID:  authReq.WorkspaceID,
 		DeviceID:     authReq.DeviceID,
 	}, nil
 }
 
 // ListDevices returns the caller's own devices in a workspace. Scoped to userID so
 // one member cannot enumerate another's machines.
-func (s *Service) ListDevices(ctx context.Context, q ListDevicesQuery, userID string) ([]DeviceResponse, error) {
-	member, err := s.members.MembershipExists(ctx, q.WorkspaceID, userID)
-	if err != nil {
-		return nil, apperror.ErrInternal
-	}
-	if !member {
-		return nil, apperror.New(404, "workspace not found")
-	}
-
-	devices, err := s.Store.ListDevices(ctx, userID, q.WorkspaceID)
+func (s *Service) ListDevices(ctx context.Context, userID string) ([]DeviceResponse, error) {
+	devices, err := s.Store.ListDevices(ctx, userID)
 	if err != nil {
 		return nil, apperror.ErrInternal
 	}

@@ -134,7 +134,7 @@ func New(cfg config.Config) (*App, error) {
 	// Depends on authService (mints the CLI's session — one source of truth for
 	// tokens) and memberStore (verifies the approver belongs to the workspace).
 	deviceStore := device.NewStore(db)
-	deviceService := device.NewService(deviceStore, authService, memberStore, cfg)
+	deviceService := device.NewService(deviceStore, authService, cfg)
 	deviceHandler := device.NewHandler(deviceService)
 	device.RegisterRoutes(app, deviceHandler, authMW)
 	

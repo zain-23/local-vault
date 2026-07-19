@@ -12,7 +12,6 @@ type AuthRequest struct {
 	Fingerprint    string    `bson:"device_fingerprint" json:"device_fingerprint"`
 	IP             string    `bson:"ip" json:"ip"`
 	UserID         string    `bson:"user_id,omitempty" json:"user_id,omitempty"`             // null until approved
-	WorkspaceID    string    `bson:"workspace_id,omitempty" json:"workspace_id,omitempty"`   // null until approved
 	DeviceID       string    `bson:"device_id,omitempty" json:"device_id,omitempty"`         // null until approved
 	Status         string    `bson:"status" json:"status"`                   // pending | approved | denied
 	Consumed       bool      `bson:"consumed" json:"consumed"`               // true once the CLI has collected its tokens
@@ -24,7 +23,6 @@ type AuthRequest struct {
 type Device struct {
 	ID           string    `bson:"_id" json:"id"`                    // prefix "dev_"
 	UserID       string    `bson:"user_id" json:"user_id"`
-	WorkspaceID  string    `bson:"workspace_id" json:"workspace_id"`
 	Name         string    `bson:"name" json:"name"`
 	Fingerprint  string    `bson:"fingerprint" json:"fingerprint"`
 	IP           string    `bson:"ip" json:"ip"`

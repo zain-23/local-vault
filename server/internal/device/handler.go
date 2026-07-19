@@ -80,17 +80,10 @@ func (h *Handler) Poll(c *fiber.Ctx) error {
 
 // List — GET /api/v1/device?workspace_id=... (auth required).
 func (h *Handler) List(c *fiber.Ctx) error {
-	var q ListDevicesQuery
-	if err := c.QueryParser(&q); err != nil { // QueryParser reads the query string, not the body
-		return apperror.ErrInvalidBody
-	}
-	if msg := validate.Struct(q); msg != "" {
-		return apperror.New(400, msg)
-	}
 	user := middleware.GetUser(c)
-	devices, err := h.svc.ListDevices(c.UserContext(), q, user.ID)
+	devices, err := h.svc.ListDevices(c.UserContext(), user.ID)
 	if err != nil {
-		return err
+			return err
 	}
 	return response.Success(c, devices, 200, "devices retrieved")
 }

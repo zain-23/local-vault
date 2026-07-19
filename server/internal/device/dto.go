@@ -28,10 +28,8 @@ type ApprovalDetailsResponse struct {
 }
 
 // DecisionRequest is the PUT /device/authorize/:userCode body.
-// WorkspaceID is required to approve and ignored on deny — hence omitempty, not required.
 type DecisionRequest struct {
 	Action      string `json:"action" validate:"required,oneof=approve deny"`
-	WorkspaceID string `json:"workspace_id" validate:"omitempty"`
 }
 
 // PollRequest is the POST /device/authorize/poll body. The secret goes in the body,
@@ -46,7 +44,6 @@ type PollResponse struct {
 	Status       string `json:"status"`
 	AccessToken  string `json:"access_token,omitempty"`
 	RefreshToken string `json:"refresh_token,omitempty"`
-	WorkspaceID  string `json:"workspace_id,omitempty"`
 	DeviceID     string `json:"device_id,omitempty"`
 }
 
@@ -57,9 +54,4 @@ type DeviceResponse struct {
 	IP           string    `json:"ip"`
 	LastSeenAt   time.Time `json:"last_seen_at"`
 	AuthorizedAt time.Time `json:"authorized_at"`
-}
-
-// ListDevicesQuery is the GET /device query string — devices are always workspace-scoped.
-type ListDevicesQuery struct {
-	WorkspaceID string `query:"workspace_id" validate:"required"`
 }

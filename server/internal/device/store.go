@@ -83,13 +83,12 @@ func (s *Store) FindAuthRequestByDeviceCodeHash(ctx context.Context, hash string
 // ApproveAuthRequest stamps the approver, workspace and new device onto the request.
 // The status filter makes this a no-op if the request already left "pending" —
 // two browser tabs clicking Approve must not create two devices.
-func (s *Store) ApproveAuthRequest(ctx context.Context, id, userID, workspaceID, deviceID string) error {
+func (s *Store) ApproveAuthRequest(ctx context.Context, id, userID, deviceID string) error {
 	res, err := s.requests.UpdateOne(ctx,
 		bson.M{"_id": id, "status": StatusPending},
 		bson.M{"$set": bson.M{
 			"status":       StatusApproved,
 			"user_id":      userID,
-			"workspace_id": workspaceID,
 			"device_id":    deviceID,
 		}},
 	)
@@ -135,9 +134,9 @@ func (s *Store) CreateDevice(ctx context.Context, d *Device) error {
 
 // ListDevices returns one user's devices in one workspace, newest first.
 // Both filters matter: a user must not be able to enumerate a teammate's devices.
-func (s *Store) ListDevices(ctx context.Context, userID, workspaceID string) ([]Device, error) {
+func (s *Store) ListDevices(ctx context.Context, userID string) ([]Device, error) {
 	opts := options.Find().SetSort(bson.D{{Key: "authorized_at", Value: -1}}) // -1 = descending
-	cur, err := s.devices.Find(ctx, bson.M{"user_id": userID, "workspace_id": workspaceID}, opts)
+	cur, err := s.devices.Find(ctx, bson.M{"user_id": userID}, opts)
 	if err != nil {
 		return nil, err
 	}
