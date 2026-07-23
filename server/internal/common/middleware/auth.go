@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/zain-23/local-vault/server/internal/common/apperror"
 	"github.com/zain-23/local-vault/server/internal/common/jwt"
+	"github.com/zain-23/local-vault/server/internal/common/reqctx"
 )
 
 // AuthUser = user info extracted from JWT — handlers access via c.Locals("user")
@@ -19,6 +20,7 @@ type AuthUser struct {
 func Auth(jwtService *jwt.Service) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var token string
+
 		if header := c.Get("Authorization"); header != "" {
 			parts := strings.SplitN(header, " ", 2)
 			if len(parts) != 2 || parts[0] != "Bearer" {
@@ -51,6 +53,14 @@ func Auth(jwtService *jwt.Service) fiber.Handler {
 			Email:    claims.Email,
 			DeviceID: claims.DeviceID,
 		})
+
+		// Also stash identity on the request context so downstream services can
+		// record audit events without every method taking ip/device params
+		c.SetUserContext(reqctx.With(c.UserContext(), reqctx.Info{
+			ActorID: 	claims.Subject,
+			DeviceID: 	claims.DeviceID,
+			IP: 		c.IP(),
+		}))
 
 		// c.Next() passes control to the next handler in the chain
 		return c.Next()

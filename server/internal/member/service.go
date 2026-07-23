@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/zain-23/local-vault/server/internal/audit"
 	"github.com/zain-23/local-vault/server/internal/common/apperror"
 	"github.com/zain-23/local-vault/server/internal/common/id"
 	"github.com/zain-23/local-vault/server/internal/common/pagination"
@@ -18,10 +19,11 @@ type Service struct {
 	store     *Store
 	publisher *email.Publisher // enqueues invite emails onto RabbitMQ
 	cfg       config.Config    // for FrontendURL when building the join link
+	audit 	  audit.Recorder
 }
 
-func NewService(store *Store, pub *email.Publisher, cfg config.Config) *Service {
-	return &Service{store: store, publisher: pub, cfg: cfg}
+func NewService(store *Store, pub *email.Publisher, cfg config.Config, recorder audit.Recorder) *Service {
+	return &Service{store: store, publisher: pub, cfg: cfg, audit: recorder}
 }
 
 // enrich joins membership rows with user display fields in one users query.
@@ -108,8 +110,6 @@ func (s *Service) Invite(ctx context.Context, workspaceID, invitedBy string, req
 		return nil, apperror.ErrInternal
 	}
 
-	fmt.Println("TOKEN", rawToken)
-
 	now := time.Now()
 	inv := &Invite{
 		ID:          id.Generate("inv_", 12),
@@ -143,6 +143,15 @@ func (s *Service) Invite(ctx context.Context, workspaceID, invitedBy string, req
 	if err := s.publisher.Publish(ctx, job); err != nil {
 		log.Printf("⚠️ failed to enqueue invite email for %s: %v", addr, err)
 	}
+
+	s.audit.Record(ctx, audit.Entry{
+		WorkspaceID: workspaceID,
+		Action:      "member.invited",
+		TargetType:  "invite",
+		TargetID:    inv.ID,
+		TargetName:  inv.Email,
+		Details:     map[string]any{"role": inv.Role},
+	})
 
 	return &InviteResponse{
 		ID:        inv.ID,
@@ -233,6 +242,14 @@ func (s *Service) Join(ctx context.Context, workspaceID, userID, userEmail strin
 		return nil, apperror.ErrInternal
 	}
 
+	s.audit.Record(ctx, audit.Entry{
+		WorkspaceID: workspaceID,
+		Action:      "member.joined",
+		TargetType:  "user",
+		TargetID:    userID,
+		Details:     map[string]any{"role": inv.Role},
+	})
+
 	return &JoinResponse{WorkspaceID: workspaceID, Role: inv.Role}, nil
 }
 
@@ -260,6 +277,15 @@ func (s *Service) ChangeRole(ctx context.Context, workspaceID, targetUserID stri
 	if err != nil {
 		return nil, err
 	}
+
+	s.audit.Record(ctx, audit.Entry{
+		WorkspaceID: workspaceID,
+		Action:      "member.role.changed",
+		TargetType:  "user",
+		TargetID:    targetUserID,
+		Details:     map[string]any{"new_role": req.Role},
+	})
+
 	return &enriched[0], nil
 }
 
@@ -278,5 +304,11 @@ func (s *Service) RemoveMember(ctx context.Context, workspaceID, targetUserID st
 	if err := s.store.DeleteMembership(ctx, workspaceID, targetUserID); err != nil {
 		return apperror.ErrInternal
 	}
+	s.audit.Record(ctx, audit.Entry{
+		WorkspaceID: workspaceID,
+		Action:      "member.removed",
+		TargetType:  "user",
+		TargetID:    targetUserID,
+	})
 	return nil
 }

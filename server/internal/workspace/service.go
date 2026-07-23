@@ -7,6 +7,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 
+	"github.com/zain-23/local-vault/server/internal/audit"
 	"github.com/zain-23/local-vault/server/internal/common/apperror"
 	"github.com/zain-23/local-vault/server/internal/common/id"
 )
@@ -14,10 +15,11 @@ import (
 // Service holds workspace business logic
 type Service struct {
 	store *Store
+	audit audit.Recorder
 }
 
-func NewService(store *Store) *Service {
-	return &Service{store: store}
+func NewService(store *Store, recorder audit.Recorder) *Service {
+	return &Service{store: store, audit: recorder}
 }
 
 // uniqueSlug slugifies a name and appends -2, -3, ... until the slug is free
@@ -67,6 +69,15 @@ func (s *Service) Create(ctx context.Context, userID string, req CreateWorkspace
 	if err := s.store.CreateWorkspaceWithOwner(ctx, ws, mem); err != nil {
 		return nil, apperror.ErrInternal
 	}
+
+	s.audit.Record(ctx, audit.Entry{
+		WorkspaceID: 	ws.ID,
+		Action: 		"workspace.created",
+		TargetType: 	"workspace",
+		TargetID: 		ws.ID,
+		TargetName: 	ws.Name,
+	})
+
 	return &WorkspaceResponse{Workspace: *ws, Role: RoleOwner}, nil
 }
 
@@ -132,6 +143,15 @@ func (s *Service) Update(ctx context.Context, workspaceID string, req UpdateWork
 	if err != nil || ws == nil {
 		return nil, apperror.ErrInternal
 	}
+
+	s.audit.Record(ctx, audit.Entry{
+		WorkspaceID: workspaceID,
+		Action:      "workspace.updated",
+		TargetType:  "workspace",
+		TargetID:    workspaceID,
+		TargetName:  ws.Name,
+	})
+
 	return ws, nil
 }
 
@@ -140,5 +160,13 @@ func (s *Service) Delete(ctx context.Context, workspaceID string) error {
 	if err := s.store.DeleteWorkspaceCascade(ctx, workspaceID); err != nil {
 		return apperror.ErrInternal
 	}
+
+	s.audit.Record(ctx, audit.Entry{
+		WorkspaceID: workspaceID,
+		Action:      "workspace.deleted",
+		TargetType:  "workspace",
+		TargetID:    workspaceID,
+	})
+	
 	return nil
 }

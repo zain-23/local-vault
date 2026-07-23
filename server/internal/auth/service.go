@@ -221,7 +221,6 @@ func (s *Service) Signup(ctx context.Context, req SignupRequest) (string, error)
 	if err != nil {
 		return  "", apperror.ErrInternal
 	}
-	fmt.Println(token)
 	s.Store.CreateEmailVerification(ctx, &EmailVerification{
 		ID: 		id.Generate("evr_", 12),
 		UserID: 	user.ID,
@@ -355,7 +354,6 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 
 // ---------------------- Email verification ------------------
 func (s *Service) VerifyEmail(ctx context.Context, token string) error {
-	fmt.Println(sha256Hash(token))
 	ev, err := s.Store.FindEmailVerificationByHash(ctx, sha256Hash(token))
 	if err != nil {
 		return apperror.ErrInternal
