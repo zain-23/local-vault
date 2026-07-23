@@ -11,9 +11,10 @@ import (
 
 // AuthUser = user info extracted from JWT — handlers access via c.Locals("user")
 type AuthUser struct {
-	ID       string
-	Email    string
-	DeviceID string
+	ID       	string
+	Email    	string
+	DeviceID 	string
+	SessionID	string
 }
 
 // Auth returns Fiber middleware that validates JWT tokens on protected routes
@@ -49,9 +50,10 @@ func Auth(jwtService *jwt.Service) fiber.Handler {
 
 		// Store user info in Locals — any handler after this can read it
 		c.Locals("user", AuthUser{
-			ID:       claims.Subject,
-			Email:    claims.Email,
-			DeviceID: claims.DeviceID,
+			ID:       	claims.Subject,
+			Email:    	claims.Email,
+			DeviceID: 	claims.DeviceID,
+			SessionID:	claims.SID,
 		})
 
 		// Also stash identity on the request context so downstream services can

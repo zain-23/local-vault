@@ -14,6 +14,7 @@ type Claims struct {
 	Email    string `json:"email"`           
 	Type     string `json:"type"`
 	DeviceID string `json:"device_id,omitempty"`
+	SID 	 string `json:"sid,omitempty"` // // session id — ties the token to a sessions row
 }
 
 // Service creates and validates JWT tokens
@@ -31,7 +32,7 @@ func NewService(secret string, accessExpiry time.Duration) *Service {
 }
 
 // GenerateAccessToken creates a signed JWT for an authenticated user
-func (s *Service) GenerateAccessToken(userID, email, deviceID string) (string, error) {
+func (s *Service) GenerateAccessToken(userID, email, deviceID, sessionID string) (string, error) {
 	now := time.Now()
 	claims := Claims{
 		RegisteredClaims: jwtlib.RegisteredClaims{
@@ -42,6 +43,7 @@ func (s *Service) GenerateAccessToken(userID, email, deviceID string) (string, e
 		Email:    email,
 		Type:     "access",
 		DeviceID: deviceID,
+		SID: 	  sessionID,
 	}
 
 	// HS256 = HMAC-SHA256 — symmetric signing (same secret for sign + verify)

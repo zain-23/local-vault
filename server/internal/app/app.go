@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
+	"github.com/zain-23/local-vault/server/internal/account"
 	"github.com/zain-23/local-vault/server/internal/audit"
 	"github.com/zain-23/local-vault/server/internal/auth"
 	"github.com/zain-23/local-vault/server/internal/common/apperror"
@@ -156,7 +157,15 @@ func New(cfg config.Config) (*App, error) {
 	
 	// ------------ Wire Audit domain (read side) ----------
 	auditHandler := audit.NewHandler(auditService)
-	audit.RegisterRoutes(app, auditHandler, wsStore, authMW)	
+	audit.RegisterRoutes(app, auditHandler, wsStore, authMW)
+	
+	
+	// ------------ Wire Account domain ----------
+	// Own store over the shared users/sessions collections; records account events.
+	accountStore := account.NewStore(db)
+	accountService := account.NewService(accountStore, auditService)
+	accountHandler := account.NewHandler(accountService)
+	account.RegisterRoutes(app, accountHandler, authMW)
 
 	return &App{Fiber: app, DB: db, Publisher: publisher, JWTService: jwtService}, nil
 }

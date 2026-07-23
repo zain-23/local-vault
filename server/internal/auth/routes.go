@@ -16,8 +16,6 @@ func RegisterRoutes(app *fiber.App, h *Handler, oauth *OAuthHandler, authMW fibe
 	auth.Post("/magic-link", h.SendMagicLink)
 	auth.Post("/magic-link/verify", h.VerifyMagicLink)
 
-	// Protected: authMW runs first and 401s if the token is missing/invalid.
-	auth.Get("/me", authMW, h.Me)
 	// OAuth — :provider is a URL param, accessed via c.Params("provider")
 	auth.Get("/oauth/:provider", oauth.RedirectToProvider)
 	auth.Get("/oauth/:provider/callback", oauth.HandleCallback)
