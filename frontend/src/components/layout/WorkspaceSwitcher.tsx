@@ -17,7 +17,7 @@ export function WorkspaceSwitcher() {
     <SidebarMenu>
       <SidebarMenuItem>
         <SidebarMenuButton
-          size="lg"
+          size={"lg"}
           className="data-[state=open]:bg-sidebar-accent"
         >
           <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground">

@@ -1,4 +1,4 @@
-import { CheckCircle2, Terminal } from "lucide-react";
+import { Terminal } from "lucide-react";
 import { useState } from "react";
 
 import { Button, ErrorMessage, SuccessMessage } from "#/components/ui";
@@ -68,11 +68,7 @@ function ApprovalScreen() {
         >
           Deny
         </Button>
-        <Button
-          className="flex-1"
-          icon={CheckCircle2}
-          onClick={() => setOutcome("approved")}
-        >
+        <Button className="flex-1" onClick={() => setOutcome("approved")}>
           Approve
         </Button>
       </div>

@@ -52,12 +52,7 @@ function TwoFactorForm() {
             <FieldError errors={[errors.code]} />
           </Field>
 
-          <Button
-            type="submit"
-            size="lg"
-            className="w-full"
-            disabled={isSubmitting}
-          >
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
             Verify
           </Button>
         </FieldGroup>

@@ -16,7 +16,7 @@ function StepLinkTerminal({ onContinue }: { onContinue: () => void }) {
 
       <CodeBlock command="lv login --workspace kodexo-labs" />
 
-      <Button size="lg" className="mt-6 w-full" onClick={onContinue}>
+      <Button className="mt-6 w-full" onClick={onContinue}>
         Continue
         <ArrowRight className="size-3.5" />
       </Button>

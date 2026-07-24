@@ -1,4 +1,3 @@
-import { UserPlus } from "lucide-react";
 import { Button, DataTable } from "#/components/ui";
 import { MOCK_MEMBERS } from "#/features/members/mock/members.ts";
 import { useModalStore } from "#/stores/useModalStore";
@@ -23,10 +22,7 @@ export function MembersPage() {
             {members.length} people in {workspace?.name}
           </p>
         </div>
-        <Button
-          icon={UserPlus}
-          onClick={() => openModal({ type: "invite-member" })}
-        >
+        <Button onClick={() => openModal({ type: "invite-member" })}>
           Invite member
         </Button>
       </div>

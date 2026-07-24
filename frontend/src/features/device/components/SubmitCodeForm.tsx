@@ -69,7 +69,7 @@ function SubmitCodeForm({ defaultCode = "" }: { defaultCode?: string }) {
             <FieldError className="text-center" errors={[errors.code]} />
           </Field>
 
-          <Button type="submit" size="lg" className="w-full">
+          <Button type="submit" className="w-full">
             Continue
           </Button>
         </FieldGroup>

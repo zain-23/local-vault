@@ -43,17 +43,9 @@ function VerifyEmailPanel({
           </div>
         )}
 
-        {isSuccess && (
-          <SuccessMessage
-            title="Email verified"
-          />
-        )}
+        {isSuccess && <SuccessMessage title="Email verified" />}
 
-        {isError && (
-          <ErrorMessage
-            title="Verification failed"
-          />
-        )}
+        {isError && <ErrorMessage title="Verification failed" />}
       </>
     );
   }
@@ -72,8 +64,7 @@ function VerifyEmailPanel({
         }
       />
 
-      <Button type="button" size="lg" className="w-full">
-        <RefreshCw />
+      <Button icon={RefreshCw} type="button" className="w-full">
         Resend verification
       </Button>
 

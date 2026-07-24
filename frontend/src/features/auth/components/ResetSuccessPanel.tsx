@@ -13,7 +13,7 @@ function ResetSuccessPanel() {
         subtitle="Your password has been changed. Sign in with your new password to continue."
       />
 
-      <Button asChild size="lg" className="w-full">
+      <Button asChild className="w-full">
         <Link to="/auth/login">
           Continue to login
           <ArrowRight />

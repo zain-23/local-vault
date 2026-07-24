@@ -41,7 +41,8 @@ func (s *Service) Me(ctx context.Context, userID string) (*ProfileResponse, erro
 	}
 	return &ProfileResponse{
 		ID: u.ID, Email: u.Email, Name: u.Name, AvatarURL: u.AvatarURL,
-		TwoFactorEnabled: u.TwoFactorEnabled, CreatedAt: u.CreatedAt,
+		TwoFactorEnabled: u.TwoFactorEnabled, Onboarded: u.Onboarded,
+		CreatedAt: u.CreatedAt,
 	}, nil
 }
 
@@ -53,6 +54,10 @@ func (s *Service) UpdateProfile(ctx context.Context, userID string, req UpdatePr
 	}
 	if req.AvatarURL != "" {
 		fields["avatar_url"] = req.AvatarURL
+	}
+	// Pointer, so this only writes when the client actually sent the field.
+	if req.Onboarded != nil {
+		fields["onboarded"] = *req.Onboarded
 	}
 	if err := s.store.UpdateUser(ctx, userID, fields); err != nil {
 		return nil, apperror.ErrInternal

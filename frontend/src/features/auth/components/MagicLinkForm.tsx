@@ -52,12 +52,7 @@ function MagicLinkForm() {
             <FieldError errors={[errors.email]} />
           </Field>
 
-          <Button
-            type="submit"
-            size="lg"
-            className="w-full"
-            disabled={isSubmitting}
-          >
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
             Email me a link
             <ArrowRight />
           </Button>

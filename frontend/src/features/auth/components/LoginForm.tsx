@@ -81,12 +81,7 @@ function LoginForm() {
             <FieldError errors={[errors.password]} />
           </Field>
 
-          <Button
-            type="submit"
-            size="lg"
-            className="w-full"
-            isLoading={isPending}
-          >
+          <Button type="submit" className="w-full" isLoading={isPending}>
             Log in
           </Button>
         </FieldGroup>

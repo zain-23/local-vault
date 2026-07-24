@@ -12,6 +12,7 @@ type User struct {
 	TwoFactorEnabled bool      `bson:"two_factor_enabled"`
 	TwoFactorSecret  string    `bson:"two_factor_secret"`
 	BackupCodes      []string  `bson:"backup_codes"` // sha256 hashes, single-use
+	Onboarded        bool      `bson:"onboarded"`
 	CreatedAt        time.Time `bson:"created_at"`
 	UpdatedAt        time.Time `bson:"updated_at"`
 }
