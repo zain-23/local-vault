@@ -14,15 +14,18 @@ import {
   deviceCodeSchema,
   toUserCodeParam,
 } from "../schemas/index.ts";
+import { useDeviceCodeStore } from "../stores/useDeviceCodeStore.ts";
 import { DeviceCard } from "./DeviceCard.tsx";
 import { DeviceCodeInput } from "./DeviceCodeInput.tsx";
 
 // Step one of the browser flow (not in the original mockup): the user types the
 // code their terminal printed, and we hand off to the approval screen. No
 // network call happens here — the code is only checked for shape; the server
-// validates it when the approval screen loads.
+// validates it when the approval screen loads. The code is stashed in a store
+// rather than the URL, so a refresh drops it and the flow restarts cleanly.
 function SubmitCodeForm({ defaultCode = "" }: { defaultCode?: string }) {
   const navigate = useNavigate();
+  const setUserCode = useDeviceCodeStore((s) => s.setUserCode);
   const {
     control,
     handleSubmit,
@@ -32,12 +35,10 @@ function SubmitCodeForm({ defaultCode = "" }: { defaultCode?: string }) {
     defaultValues: { code: defaultCode },
   });
 
-  const onSubmit = handleSubmit(({ code }) =>
-    navigate({
-      to: "/device/confirmation",
-      search: { user_code: toUserCodeParam(code) },
-    }),
-  );
+  const onSubmit = handleSubmit(({ code }) => {
+    setUserCode(toUserCodeParam(code));
+    navigate({ to: "/device/confirmation" });
+  });
 
   return (
     <DeviceCard
