@@ -1,8 +1,13 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { AppSidebar } from "#/components/layout/AppSidebar.tsx";
 import { GlobalModalProvider } from "#/components/shared/GlobalModalProvider.tsx";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "#/components/ui";
 import { meQuery } from "#/features/auth/api";
+import { parseMemberRole } from "#/features/members/utils/canManageInvites.ts";
+import { workspacesQuery } from "#/features/onboarding/api";
+import { useWorkspaceStore } from "#/stores/useWorkspaceStore";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { useLayoutEffect } from "react";
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: async ({ context }) => {
@@ -12,11 +17,33 @@ export const Route = createFileRoute("/_app")({
       throw redirect({ to: "/auth/login" });
     }
     if (!user.onboarded) throw redirect({ to: "/onboarding" });
+
+    // One fetch per page load (workspacesQuery). Do NOT
+    // write Zustand here — server store mutations never reach the client.
+    await context.queryClient.ensureQueryData(workspacesQuery);
   },
   component: AppLayout,
 });
 
 function AppLayout() {
+  // Copy the cached workspaces result into Zustand once on the client. Store
+  // stays for the rest of the session; a refresh clears both and re-fetches.
+  const { data } = useQuery(workspacesQuery);
+  const activeId = useWorkspaceStore((s) => s.active?.id);
+  const setActive = useWorkspaceStore((s) => s.setActive);
+
+  useLayoutEffect(() => {
+    if (activeId) return;
+    const first = data?.at(0);
+    if (!first) return;
+    setActive({
+      id: first.workspace.id,
+      name: first.workspace.name,
+      plan: "Free",
+      role: parseMemberRole(first.role),
+    });
+  }, [activeId, setActive]);
+
   return (
     <SidebarProvider>
       <AppSidebar />

@@ -6,6 +6,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { Toaster } from "#/components/ui/index.ts";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import { Provider } from "../integrations/tanstack-query/root-provider";
@@ -52,7 +53,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="font-sans antialiased wrap-anywhere selection:bg-[rgba(79,184,178,0.24)]">
-        <Provider queryClient={queryClient}>{children}</Provider>
+        <Provider queryClient={queryClient}>
+          <NuqsAdapter>{children}</NuqsAdapter>
+        </Provider>
         {/* App-wide toast portal — call toast() from anywhere */}
         <Toaster position="bottom-right" richColors />
         <TanStackDevtools

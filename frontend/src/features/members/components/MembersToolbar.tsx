@@ -1,15 +1,22 @@
-import type { Table } from "@tanstack/react-table";
 import { Search } from "lucide-react";
+import { useQueryStates } from "nuqs";
+
 import { Input } from "#/components/ui";
-import type { Member } from "#/features/members/types";
+import {
+  membersSearchDebounce,
+  membersSearchOptions,
+  membersSearchParams,
+} from "../search-params.ts";
 import { RoleFilter } from "./RoleFilter.tsx";
 
-// Table toolbar: search on the left, role filter on the right. Search is bound to
-// the "member" column's filter (matches name + email). Lives inside the table card
-// so it's separate from the page's primary "Invite" action.
-export function MembersToolbar({ table }: { table: Table<Member> }) {
-  const memberColumn = table.getColumn("member");
-  const search = (memberColumn?.getFilterValue() as string) ?? "";
+// Table toolbar: search + role filter, both driven by nuqs URL state so the
+// list is shareable/refresh-safe and filters hit the server (not client-side).
+export function MembersToolbar() {
+  const [{ search }, setParams] = useQueryStates(membersSearchParams, {
+    ...membersSearchOptions,
+    // Only search typing needs a debounce — role/page are discrete clicks.
+    limitUrlUpdates: membersSearchDebounce,
+  });
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -17,12 +24,12 @@ export function MembersToolbar({ table }: { table: Table<Member> }) {
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
-          onChange={(e) => memberColumn?.setFilterValue(e.target.value)}
+          onChange={(e) => setParams({ search: e.target.value, page: 1 })}
           placeholder="Search by name or email…"
           className="pl-8"
         />
       </div>
-      <RoleFilter table={table} />
+      <RoleFilter />
     </div>
   );
 }

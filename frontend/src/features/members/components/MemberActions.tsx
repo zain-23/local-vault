@@ -9,15 +9,27 @@ import {
   DropdownMenuTrigger,
 } from "#/components/ui";
 import type { Member } from "#/features/members/types";
+import {
+  canChangeMemberRole,
+  canManageInvites,
+} from "#/features/members/utils";
 import { useModalStore } from "#/stores/useModalStore";
+import { useWorkspaceStore } from "#/stores/useWorkspaceStore";
 
-// Row action menu. Only exposes operations the member API actually supports:
-// change role (PUT /:userId/role) and remove (DELETE /:userId). The owner row
-// gets no actions — the server forbids changing or removing the owner.
-export function MemberActions({ member }: { member: Member }) {
+type MemberActionsProps = {
+  member: Member;
+};
+
+// Row action menu. Owner/admin only, never on the owner row. Mutations live in
+// ChangeRoleModal / RemoveMemberModal — this only opens them.
+export function MemberActions({ member }: MemberActionsProps) {
+  const myRole = useWorkspaceStore((s) => s.active?.role);
   const openModal = useModalStore((s) => s.openModal);
 
-  if (member.role === "owner") {
+  const canManage = canManageInvites(myRole);
+  const canChangeRole = canChangeMemberRole(myRole);
+
+  if (!canManage || member.role === "owner") {
     return null;
   }
 
@@ -30,13 +42,17 @@ export function MemberActions({ member }: { member: Member }) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuItem
-          onSelect={() => openModal({ type: "change-role", props: { member } })}
-        >
-          <Shield />
-          Change role
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
+        {canChangeRole && (
+          <DropdownMenuItem
+            onSelect={() =>
+              openModal({ type: "change-role", props: { member } })
+            }
+          >
+            <Shield />
+            Change role
+          </DropdownMenuItem>
+        )}
+        {canChangeRole && <DropdownMenuSeparator />}
         <DropdownMenuItem
           variant="destructive"
           onSelect={() =>
