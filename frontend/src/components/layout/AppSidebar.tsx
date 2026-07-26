@@ -21,9 +21,6 @@ import {
 } from "#/components/ui";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher.tsx";
 
-// Nav items. `to` marks a live route; items without one are placeholders for
-// pages not built yet (shown disabled with a "Soon" badge). No Billing item —
-// the product is free (GitHub Sponsors), so there's nothing to bill.
 interface NavItem {
   title: string;
   icon: LucideIcon;

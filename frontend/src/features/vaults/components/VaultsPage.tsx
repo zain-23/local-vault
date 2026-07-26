@@ -1,8 +1,11 @@
+import { useNavigate } from "@tanstack/react-router";
+
 import { DataTable } from "#/components/ui";
 import { useVaults } from "#/features/vaults/hooks";
 import { vaultColumns } from "./columns.tsx";
 
 export function VaultsPage() {
+  const navigate = useNavigate();
   const { data, isLoading, isError, isFetching } = useVaults();
   const vaults = data ?? [];
 
@@ -27,6 +30,9 @@ export function VaultsPage() {
             : undefined
         }
         emptyMessage="No vaults yet."
+        onRowClick={(row) =>
+          navigate({ to: "/vaults/$vaultId", params: { vaultId: row.id } })
+        }
       />
     </div>
   );

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,8 +9,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/zain-23/local-vault/internal/api"
-	"github.com/zain-23/local-vault/internal/appstate"
-	"github.com/zain-23/local-vault/internal/authstore"
 	"github.com/zain-23/local-vault/internal/config"
 	"github.com/zain-23/local-vault/internal/identity"
 	internalsync "github.com/zain-23/local-vault/internal/sync"
@@ -20,19 +17,16 @@ import (
 )
 
 var joinCmd = &cobra.Command{
-	Use:     "join TOKEN",
-	Short:   "Join a vault using a join token",
-	Example: "  lv join lv_join_a3f9b2c1xxx.<secret>",
-	Args:    cobra.ExactArgs(1),
+	Use:   "join CODE",
+	Short: "Join a vault using an emailed invite code",
+	Example: `  lv join ABCD-1234
+
+  Tip: you must be logged in and already a workspace member`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		parts := strings.SplitN(args[0], ".", 2)
-		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-			return fmt.Errorf("invalid token format — expected lv_join_<id>.<secret>")
-		}
-		tokenID := parts[0]
-		secret, err := base64.RawURLEncoding.DecodeString(parts[1])
-		if err != nil {
-			return fmt.Errorf("invalid token format — secret is not valid")
+		code := strings.TrimSpace(args[0])
+		if code == "" {
+			return fmt.Errorf("provide the invite code from your email")
 		}
 
 		dir, err := os.Getwd()
@@ -45,7 +39,7 @@ var joinCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		cfg, err := config.Load(lvDir)
+		client, err := requireAPI()
 		if err != nil {
 			return err
 		}
@@ -54,25 +48,22 @@ var joinCmd = &cobra.Command{
 			return err
 		}
 
-		st, err := appstate.Load()
-		if err != nil {
-			return err
-		}
-		client := api.New(st.ServerURL)
-
-		ui.Step("verifying token...")
-		resp, err := client.Join(api.JoinRequest{
-			Token:           tokenID,
-			Verifier:        internalsync.DeriveVerifier(secret),
+		ui.Step("joining vault...")
+		resp, err := client.JoinByCode(api.JoinByCodeRequest{
+			Code:            code,
 			DeviceID:        id.DeviceID,
 			DeviceName:      id.DeviceName,
 			PublicKey:       id.PublicKey,
 			X25519PublicKey: id.X25519PublicKey,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to join: %w", err)
+			return mapNotLoggedIn(fmt.Errorf("failed to join: %w", err))
 		}
 
+		cfg, err := config.Load(lvDir)
+		if err != nil {
+			cfg = &config.Config{}
+		}
 		cfg.VaultID = resp.VaultID
 		cfg.WorkspaceID = resp.WorkspaceID
 		cfg.DeviceID = id.DeviceID
@@ -81,33 +72,25 @@ var joinCmd = &cobra.Command{
 		}
 
 		ui.Success("joined vault %s", resp.VaultID)
-		ui.Step("discovering %d peer(s)...", len(resp.Peers))
 		for _, peer := range resp.Peers {
 			if peer.DeviceID == id.DeviceID {
 				continue
 			}
-			if err := v.AddPeer(apiPeerToVault(peer)); err == nil {
-				ui.Success("peer saved: %s", peer.DeviceName)
-			}
+			_ = v.AddPeer(apiPeerToVault(peer))
 		}
 
 		if resp.WrappedDEK == nil {
-			ui.Warn("this invite predates encrypted-key support")
-			ui.Hint("ask the owner for a new invite: lv invite --name ...")
-			return nil
+			return fmt.Errorf("invite is missing vault key — ask for a new invite")
 		}
-
-		dek, err := internalsync.UnwrapKey(resp.WrappedDEK, secret)
+		dek, err := internalsync.UnwrapKey(resp.WrappedDEK, []byte(normalizeJoinCode(code)))
 		if err != nil {
-			return fmt.Errorf("could not unwrap vault key — ask for a new invite")
+			return fmt.Errorf("could not unwrap vault key — wrong code or corrupted invite")
 		}
 		if err := v.SetDataKey(dek); err != nil {
 			return err
 		}
 
-		if resp.Snapshot == nil {
-			ui.Warn("no secrets pushed yet — they will arrive on: lv sync")
-		} else {
+		if resp.Snapshot != nil {
 			ui.Step("downloading vault snapshot...")
 			rawSecrets, err := internalsync.DecryptSnapshot(resp.Snapshot, dek)
 			if err != nil {
@@ -124,19 +107,21 @@ var joinCmd = &cobra.Command{
 				return err
 			}
 			ui.Success("received %d secret(s)", count)
+		} else {
+			ui.Warn("no secrets pushed yet — they will arrive on: lv sync")
 		}
 
 		ui.Header("Joined")
 		ui.KeyValue("Vault", resp.VaultID)
 		ui.KeyValue("Workspace", resp.WorkspaceID)
-		ui.KeyValue("Peers", fmt.Sprintf("%d", len(resp.Peers)))
-		ui.Hint("lv inject -- npm run dev")
-
-		if _, err := authstore.Load(); err != nil {
-			ui.Hint("run: lv login   before push/sync")
-		}
+		ui.Hint("lv sync / lv inject -- npm run dev")
 		return nil
 	},
+}
+
+func normalizeJoinCode(s string) string {
+	s = strings.TrimSpace(strings.ToUpper(s))
+	return strings.ReplaceAll(s, " ", "")
 }
 
 func init() {

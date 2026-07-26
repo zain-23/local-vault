@@ -29,6 +29,7 @@ import { Route as DeviceIndexRouteImport } from './routes/device/index'
 import { Route as DeviceConfirmationRouteImport } from './routes/device/confirmation'
 import { Route as WorkspacesJoinRouteImport } from './routes/workspaces/join'
 import { Route as AppVaultsIndexRouteImport } from './routes/_app/vaults/index'
+import { Route as AppVaultsVaultIdRouteImport } from './routes/_app/vaults/$vaultId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -129,6 +130,11 @@ const AppVaultsIndexRoute = AppVaultsIndexRouteImport.update({
   path: '/vaults/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppVaultsVaultIdRoute = AppVaultsVaultIdRouteImport.update({
+  id: '/vaults/$vaultId',
+  path: '/vaults/$vaultId',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -149,6 +155,7 @@ export interface FileRoutesByFullPath {
   '/device/confirmation': typeof DeviceConfirmationRoute
   '/workspaces/join': typeof WorkspacesJoinRoute
   '/device/': typeof DeviceIndexRoute
+  '/vaults/$vaultId': typeof AppVaultsVaultIdRoute
   '/vaults/': typeof AppVaultsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -169,6 +176,7 @@ export interface FileRoutesByTo {
   '/device/confirmation': typeof DeviceConfirmationRoute
   '/workspaces/join': typeof WorkspacesJoinRoute
   '/device': typeof DeviceIndexRoute
+  '/vaults/$vaultId': typeof AppVaultsVaultIdRoute
   '/vaults': typeof AppVaultsIndexRoute
 }
 export interface FileRoutesById {
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/device/confirmation': typeof DeviceConfirmationRoute
   '/workspaces/join': typeof WorkspacesJoinRoute
   '/device/': typeof DeviceIndexRoute
+  '/_app/vaults/$vaultId': typeof AppVaultsVaultIdRoute
   '/_app/vaults/': typeof AppVaultsIndexRoute
 }
 export interface FileRouteTypes {
@@ -215,6 +224,7 @@ export interface FileRouteTypes {
     | '/device/confirmation'
     | '/workspaces/join'
     | '/device/'
+    | '/vaults/$vaultId'
     | '/vaults/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -235,6 +245,7 @@ export interface FileRouteTypes {
     | '/device/confirmation'
     | '/workspaces/join'
     | '/device'
+    | '/vaults/$vaultId'
     | '/vaults'
   id:
     | '__root__'
@@ -257,6 +268,7 @@ export interface FileRouteTypes {
     | '/device/confirmation'
     | '/workspaces/join'
     | '/device/'
+    | '/_app/vaults/$vaultId'
     | '/_app/vaults/'
   fileRoutesById: FileRoutesById
 }
@@ -411,6 +423,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVaultsIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/vaults/$vaultId': {
+      id: '/_app/vaults/$vaultId'
+      path: '/vaults/$vaultId'
+      fullPath: '/vaults/$vaultId'
+      preLoaderRoute: typeof AppVaultsVaultIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -470,11 +489,13 @@ const WorkspacesRouteRouteWithChildren = WorkspacesRouteRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppMembersRoute: typeof AppMembersRoute
+  AppVaultsVaultIdRoute: typeof AppVaultsVaultIdRoute
   AppVaultsIndexRoute: typeof AppVaultsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppMembersRoute: AppMembersRoute,
+  AppVaultsVaultIdRoute: AppVaultsVaultIdRoute,
   AppVaultsIndexRoute: AppVaultsIndexRoute,
 }
 

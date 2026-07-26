@@ -1,0 +1,33 @@
+{{define "content"}}
+<p style="color: #333333">Hello,</p>
+<p style="color: #333333">
+  You've been invited to collaborate on the <strong>{{.Name}}</strong> vault on
+  LocalVault.
+</p>
+<p style="color: #333333">
+  Sign in to the CLI with this email, then join with your invite code:
+</p>
+<p
+  style="
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 22px;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    color: #111111;
+  "
+>
+  {{.Code}}
+</p>
+<pre
+  style="
+    background: #f4f4f5;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    overflow-x: auto;
+  "
+>lv join {{.Code}}</pre>
+<p style="color: #999999; font-size: 12px">
+  You must already be a member of the workspace. This code expires in 7 days.
+</p>
+{{end}}

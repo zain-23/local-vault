@@ -1,25 +1,27 @@
 package cmd
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/zain-23/local-vault/internal/api"
 	"github.com/zain-23/local-vault/internal/identity"
+	"github.com/zain-23/local-vault/internal/joincode"
 	internalsync "github.com/zain-23/local-vault/internal/sync"
 	"github.com/zain-23/local-vault/internal/ui"
 )
 
 var inviteCmd = &cobra.Command{
-	Use:   "invite",
-	Short: "Generate a join token for a teammate",
-	Example: `  lv invite --name "Ahmed"
-  lv invite --list`,
+	Use:   "invite [email]",
+	Short: "Invite a workspace member to this vault by email",
+	Example: `  lv invite sara@company.com
+  lv invite --list
+  lv invite --revoke sara@company.com`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir, err := os.Getwd()
 		if err != nil {
@@ -41,14 +43,18 @@ var inviteCmd = &cobra.Command{
 		}
 
 		listFlag, _ := cmd.Flags().GetBool("list")
-		if listFlag {
-			return listTokens(client, cfg.WorkspaceID, cfg.VaultID)
-		}
+		revokeArg, _ := cmd.Flags().GetString("revoke")
 
-		name, _ := cmd.Flags().GetString("name")
-		if name == "" {
-			return fmt.Errorf("provide a name for the token\n  Example: lv invite --name \"Ahmed\"")
+		if listFlag {
+			return listCollaborators(client, cfg.WorkspaceID, cfg.VaultID)
 		}
+		if revokeArg != "" {
+			return revokeCollaborator(client, cfg.WorkspaceID, cfg.VaultID, revokeArg)
+		}
+		if len(args) == 0 {
+			return fmt.Errorf("provide an email\n  Example: lv invite sara@company.com")
+		}
+		email := strings.TrimSpace(args[0])
 
 		v, err := loadVault(dir)
 		if err != nil {
@@ -59,63 +65,78 @@ var inviteCmd = &cobra.Command{
 			return err
 		}
 
-		secret := make([]byte, 24)
-		if _, err := rand.Read(secret); err != nil {
-			return fmt.Errorf("failed to generate token secret: %w", err)
+		code, err := joincode.New()
+		if err != nil {
+			return fmt.Errorf("failed to generate join code: %w", err)
 		}
-		wrappedDEK, err := internalsync.WrapKey(dek, secret)
+		wrappedDEK, err := internalsync.WrapKey(dek, []byte(code))
 		if err != nil {
 			return err
 		}
 
-		token, err := client.CreateToken(cfg.WorkspaceID, cfg.VaultID, api.CreateTokenRequest{
+		collab, err := client.InviteCollaborator(cfg.WorkspaceID, cfg.VaultID, api.InviteCollaboratorRequest{
+			Email:      email,
 			DeviceID:   id.DeviceID,
-			Name:       name,
+			Code:       code,
 			WrappedDEK: wrappedDEK,
-			Verifier:   internalsync.DeriveVerifier(secret),
 		})
 		if err != nil {
-			return mapNotLoggedIn(fmt.Errorf("failed to create token: %w", err))
+			return mapNotLoggedIn(fmt.Errorf("failed to invite: %w", err))
 		}
 
-		fullToken := token.ID + "." + base64.RawURLEncoding.EncodeToString(secret)
-
-		ui.Header("Join Token")
-		ui.KeyValue("For", name)
-		ui.KeyValue("Token ID", token.ID)
-		ui.Info("share this privately with your teammate:")
-		ui.Code(fullToken)
-		ui.Hint("they should run: lv join <token>")
-		ui.Warn("this token contains the vault key — share it privately")
+		ui.Header("Vault Invite")
+		ui.KeyValue("Email", collab.Email)
+		ui.KeyValue("Expires", collab.ExpiresAt.Format("2006-01-02"))
+		ui.Success("invite email sent with join code")
+		ui.Hint("they run: lv login && lv join <code-from-email>")
 		return nil
 	},
 }
 
-func listTokens(client *api.Client, workspaceID, vaultID string) error {
-	tokens, err := client.ListTokens(workspaceID, vaultID)
+func listCollaborators(client *api.Client, workspaceID, vaultID string) error {
+	list, err := client.ListCollaborators(workspaceID, vaultID)
 	if err != nil {
 		return mapNotLoggedIn(err)
 	}
-	if len(tokens) == 0 {
-		ui.Info("no active tokens")
-		ui.Hint("create one: lv invite --name \"Ahmed\"")
+	if len(list) == 0 {
+		ui.Info("no collaborators or pending invites")
+		ui.Hint("invite one: lv invite sara@company.com")
 		return nil
 	}
-	rows := make([][]string, 0, len(tokens))
-	for _, t := range tokens {
-		expires := "never"
-		if t.ExpiresAt != nil {
-			expires = t.ExpiresAt.Format("2006-01-02")
-		}
-		rows = append(rows, []string{t.Name, t.ID, t.CreatedAt.Format("2006-01-02 15:04"), expires})
+	rows := make([][]string, 0, len(list))
+	for _, c := range list {
+		rows = append(rows, []string{c.Email, c.Status, c.ID, c.CreatedAt.Format("2006-01-02 15:04")})
 	}
-	ui.Header("Active Join Tokens")
-	ui.Table([]string{"NAME", "TOKEN", "CREATED", "EXPIRES"}, rows)
+	ui.Header("Vault Collaborators")
+	ui.Table([]string{"EMAIL", "STATUS", "ID", "CREATED"}, rows)
+	return nil
+}
+
+func revokeCollaborator(client *api.Client, workspaceID, vaultID, emailOrID string) error {
+	list, err := client.ListCollaborators(workspaceID, vaultID)
+	if err != nil {
+		return mapNotLoggedIn(err)
+	}
+	var target *api.Collaborator
+	for i := range list {
+		if list[i].ID == emailOrID || strings.EqualFold(list[i].Email, emailOrID) {
+			target = &list[i]
+			break
+		}
+	}
+	if target == nil {
+		return fmt.Errorf("no pending invite matching %q", emailOrID)
+	}
+	if err := client.RevokeCollaborator(workspaceID, vaultID, target.ID); err != nil {
+		return mapNotLoggedIn(err)
+	}
+	ui.Success("invite revoked")
+	ui.KeyValue("Email", target.Email)
 	return nil
 }
 
 func init() {
-	inviteCmd.Flags().StringP("name", "n", "", "name of the teammate (required)")
-	inviteCmd.Flags().Bool("list", false, "list all active tokens")
+	inviteCmd.Flags().Bool("list", false, "list collaborators and pending invites")
+	inviteCmd.Flags().String("revoke", "", "revoke a pending invite by email or id")
 	rootCmd.AddCommand(inviteCmd)
 }

@@ -151,7 +151,7 @@ func New(cfg config.Config) (*App, error) {
 	// ------------ Wire Vault domain ----------
 	// Reuses wsStore as the RequireRole membership checker (RoleOf).
 	vaultStore := vault.NewStore(db)
-	vaultService := vault.NewService(vaultStore, auditService)
+	vaultService := vault.NewService(vaultStore, auditService, memberDirectory{store: memberStore}, publisher, cfg)
 	vaultHandler := vault.NewHandler(vaultService)
 	vault.RegisterRoutes(app, vaultHandler, wsStore, authMW)
 	

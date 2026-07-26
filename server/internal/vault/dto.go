@@ -35,14 +35,55 @@ type VaultSummary struct {
 
 // VaultResponse is the detail view — includes peers, excludes snapshot/tokens.
 type VaultResponse struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`
-	WorkspaceID   string    `json:"workspace_id"`
-	CreatedBy     string    `json:"created_by"`
-	OwnerDeviceID string    `json:"owner_device_id"`
-	Peers         []Peer    `json:"peers"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            string         `json:"id"`
+	Name          string         `json:"name"`
+	WorkspaceID   string         `json:"workspace_id"`
+	CreatedBy     string         `json:"created_by"`
+	OwnerDeviceID string         `json:"owner_device_id"`
+	Peers         []PeerResponse `json:"peers"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+}
+
+// PeerResponse is a peer for API responses (optional account enrichment).
+type PeerResponse struct {
+	DeviceID        string    `json:"device_id"`
+	DeviceName      string    `json:"device_name"`
+	PublicKey       []byte    `json:"public_key"`
+	X25519PublicKey []byte    `json:"x25519_public_key"`
+	UserID          string    `json:"user_id,omitempty"`
+	Name            string    `json:"name,omitempty"`
+	Email           string    `json:"email,omitempty"`
+	JoinedAt        time.Time `json:"joined_at"`
+}
+
+// --- collaborators ---
+
+type InviteCollaboratorRequest struct {
+	Email      string `json:"email" validate:"required,email"`
+	DeviceID   string `json:"device_id" validate:"required"`
+	Code       string `json:"code" validate:"required"`        // short ABCD-1234; emailed; stored hashed
+	WrappedDEK []byte `json:"wrapped_dek" validate:"required"` // DEK wrapped with the code
+}
+
+type CollaboratorResponse struct {
+	ID        string    `json:"id"`
+	VaultID   string    `json:"vault_id"`
+	UserID    string    `json:"user_id"`
+	Email     string    `json:"email"`
+	InvitedBy string    `json:"invited_by"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+// JoinByCodeRequest — authenticated short-code join (email invite).
+type JoinByCodeRequest struct {
+	Code            string `json:"code" validate:"required"`
+	DeviceID        string `json:"device_id" validate:"required"`
+	DeviceName      string `json:"device_name" validate:"required"`
+	PublicKey       []byte `json:"public_key" validate:"required"`
+	X25519PublicKey []byte `json:"x25519_public_key" validate:"required"`
 }
 
 

@@ -47,7 +47,7 @@ type MessagesResponse struct {
 
 func (c *Client) Join(req JoinRequest) (*JoinResponse, error) {
 	var out JoinResponse
-	if err := c.do(http.MethodPost, "/api/v1/join", req, &out, false); err != nil {
+	if err := c.do(http.MethodPost, "/api/v1/join", req, &out, true); err != nil {
 		return nil, err
 	}
 	return &out, nil

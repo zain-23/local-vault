@@ -22,7 +22,31 @@ type Peer struct {
 	DeviceName      string    `bson:"device_name" json:"device_name"`
 	PublicKey       []byte    `bson:"public_key" json:"public_key"`
 	X25519PublicKey []byte    `bson:"x25519_public_key" json:"x25519_public_key"`
+	UserID          string    `bson:"user_id,omitempty" json:"user_id,omitempty"` // account that owns this device
 	JoinedAt        time.Time `bson:"joined_at" json:"joined_at"`
+}
+
+// Collaborator invite lifecycle (collection: vault_collaborators).
+const (
+	CollabPending = "pending"
+	CollabActive  = "active"
+	CollabRevoked = "revoked"
+)
+
+// Collaborator = emailed short-code invite; join via CLI adds a Peer.
+type Collaborator struct {
+	ID          string    `bson:"_id" json:"id"`
+	VaultID     string    `bson:"vault_id" json:"vault_id"`
+	WorkspaceID string    `bson:"workspace_id" json:"workspace_id"`
+	UserID      string    `bson:"user_id" json:"user_id"`
+	Email       string    `bson:"email" json:"email"`
+	InvitedBy   string    `bson:"invited_by" json:"invited_by"`
+	Status      string    `bson:"status" json:"status"`
+	CodeHash    string    `bson:"code_hash,omitempty" json:"-"` // sha256 of join code
+	WrappedDEK  []byte    `bson:"wrapped_dek,omitempty" json:"-"`
+	CreatedAt   time.Time `bson:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `bson:"updated_at" json:"updated_at"`
+	ExpiresAt   time.Time `bson:"expires_at" json:"expires_at"`
 }
 
 // Token = a join token. wrapped_dek + verifier are secrets (json:"-"): the CLI

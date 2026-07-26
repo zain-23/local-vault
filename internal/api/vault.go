@@ -24,6 +24,9 @@ type Peer struct {
 	DeviceName      string    `json:"device_name"`
 	PublicKey       []byte    `json:"public_key"`
 	X25519PublicKey []byte    `json:"x25519_public_key"`
+	UserID          string    `json:"user_id,omitempty"`
+	Name            string    `json:"name,omitempty"`
+	Email           string    `json:"email,omitempty"`
 	JoinedAt        time.Time `json:"joined_at"`
 }
 
