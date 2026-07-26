@@ -15,7 +15,7 @@ import {
   toUserCodeParam,
 } from "../schemas/index.ts";
 import { useDeviceCodeStore } from "../stores/useDeviceCodeStore.ts";
-import { DeviceCard } from "./DeviceCard.tsx";
+import { FocusedCard } from "#/components/shared";
 import { DeviceCodeInput } from "./DeviceCodeInput.tsx";
 
 // Step one of the browser flow (not in the original mockup): the user types the
@@ -41,7 +41,7 @@ function SubmitCodeForm({ defaultCode = "" }: { defaultCode?: string }) {
   });
 
   return (
-    <DeviceCard
+    <FocusedCard
       icon={Terminal}
       title="Enter the code from your terminal"
       subtitle={
@@ -79,7 +79,7 @@ function SubmitCodeForm({ defaultCode = "" }: { defaultCode?: string }) {
       <p className="mt-5 text-center text-xs text-muted-foreground">
         Didn't start this? You can safely close this page.
       </p>
-    </DeviceCard>
+    </FocusedCard>
   );
 }
 

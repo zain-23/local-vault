@@ -42,7 +42,7 @@ function AppLayout() {
       plan: "Free",
       role: parseMemberRole(first.role),
     });
-  }, [activeId, setActive]);
+  }, [activeId, data, setActive]);
 
   return (
     <SidebarProvider>

@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as DeviceRouteRouteImport } from './routes/device/route'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as WorkspacesRouteRouteImport } from './routes/workspaces/route'
 import { Route as AppMembersRouteImport } from './routes/_app/members'
 import { Route as AuthCheckEmailRouteImport } from './routes/auth/check-email'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
@@ -26,6 +27,7 @@ import { Route as AuthTwoFactorRouteImport } from './routes/auth/two-factor'
 import { Route as AuthVerifyEmailRouteImport } from './routes/auth/verify-email'
 import { Route as DeviceIndexRouteImport } from './routes/device/index'
 import { Route as DeviceConfirmationRouteImport } from './routes/device/confirmation'
+import { Route as WorkspacesJoinRouteImport } from './routes/workspaces/join'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -49,6 +51,11 @@ const DeviceRouteRoute = DeviceRouteRouteImport.update({
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WorkspacesRouteRoute = WorkspacesRouteRouteImport.update({
+  id: '/workspaces',
+  path: '/workspaces',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppMembersRoute = AppMembersRouteImport.update({
@@ -111,11 +118,17 @@ const DeviceConfirmationRoute = DeviceConfirmationRouteImport.update({
   path: '/confirmation',
   getParentRoute: () => DeviceRouteRoute,
 } as any)
+const WorkspacesJoinRoute = WorkspacesJoinRouteImport.update({
+  id: '/join',
+  path: '/join',
+  getParentRoute: () => WorkspacesRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
   '/device': typeof DeviceRouteRouteWithChildren
+  '/workspaces': typeof WorkspacesRouteRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/members': typeof AppMembersRoute
   '/auth/check-email': typeof AuthCheckEmailRoute
@@ -128,11 +141,13 @@ export interface FileRoutesByFullPath {
   '/auth/two-factor': typeof AuthTwoFactorRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/device/confirmation': typeof DeviceConfirmationRoute
+  '/workspaces/join': typeof WorkspacesJoinRoute
   '/device/': typeof DeviceIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
+  '/workspaces': typeof WorkspacesRouteRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/members': typeof AppMembersRoute
   '/auth/check-email': typeof AuthCheckEmailRoute
@@ -145,6 +160,7 @@ export interface FileRoutesByTo {
   '/auth/two-factor': typeof AuthTwoFactorRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/device/confirmation': typeof DeviceConfirmationRoute
+  '/workspaces/join': typeof WorkspacesJoinRoute
   '/device': typeof DeviceIndexRoute
 }
 export interface FileRoutesById {
@@ -152,6 +168,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
   '/device': typeof DeviceRouteRouteWithChildren
+  '/workspaces': typeof WorkspacesRouteRouteWithChildren
   '/_app': typeof AppRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/_app/members': typeof AppMembersRoute
@@ -165,6 +182,7 @@ export interface FileRoutesById {
   '/auth/two-factor': typeof AuthTwoFactorRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/device/confirmation': typeof DeviceConfirmationRoute
+  '/workspaces/join': typeof WorkspacesJoinRoute
   '/device/': typeof DeviceIndexRoute
 }
 export interface FileRouteTypes {
@@ -173,6 +191,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/device'
+    | '/workspaces'
     | '/onboarding'
     | '/members'
     | '/auth/check-email'
@@ -185,11 +204,13 @@ export interface FileRouteTypes {
     | '/auth/two-factor'
     | '/auth/verify-email'
     | '/device/confirmation'
+    | '/workspaces/join'
     | '/device/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/workspaces'
     | '/onboarding'
     | '/members'
     | '/auth/check-email'
@@ -202,12 +223,14 @@ export interface FileRouteTypes {
     | '/auth/two-factor'
     | '/auth/verify-email'
     | '/device/confirmation'
+    | '/workspaces/join'
     | '/device'
   id:
     | '__root__'
     | '/'
     | '/auth'
     | '/device'
+    | '/workspaces'
     | '/_app'
     | '/onboarding'
     | '/_app/members'
@@ -221,6 +244,7 @@ export interface FileRouteTypes {
     | '/auth/two-factor'
     | '/auth/verify-email'
     | '/device/confirmation'
+    | '/workspaces/join'
     | '/device/'
   fileRoutesById: FileRoutesById
 }
@@ -228,6 +252,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRouteRoute: typeof AuthRouteRouteWithChildren
   DeviceRouteRoute: typeof DeviceRouteRouteWithChildren
+  WorkspacesRouteRoute: typeof WorkspacesRouteRouteWithChildren
   AppRoute: typeof AppRouteWithChildren
   OnboardingRoute: typeof OnboardingRoute
 }
@@ -267,6 +292,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/workspaces': {
+      id: '/workspaces'
+      path: '/workspaces'
+      fullPath: '/workspaces'
+      preLoaderRoute: typeof WorkspacesRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/members': {
@@ -353,6 +385,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DeviceConfirmationRouteImport
       parentRoute: typeof DeviceRouteRoute
     }
+    '/workspaces/join': {
+      id: '/workspaces/join'
+      path: '/join'
+      fullPath: '/workspaces/join'
+      preLoaderRoute: typeof WorkspacesJoinRouteImport
+      parentRoute: typeof WorkspacesRouteRoute
+    }
   }
 }
 
@@ -398,6 +437,18 @@ const DeviceRouteRouteWithChildren = DeviceRouteRoute._addFileChildren(
   DeviceRouteRouteChildren,
 )
 
+interface WorkspacesRouteRouteChildren {
+  WorkspacesJoinRoute: typeof WorkspacesJoinRoute
+}
+
+const WorkspacesRouteRouteChildren: WorkspacesRouteRouteChildren = {
+  WorkspacesJoinRoute: WorkspacesJoinRoute,
+}
+
+const WorkspacesRouteRouteWithChildren = WorkspacesRouteRoute._addFileChildren(
+  WorkspacesRouteRouteChildren,
+)
+
 interface AppRouteChildren {
   AppMembersRoute: typeof AppMembersRoute
 }
@@ -412,6 +463,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRouteRoute: AuthRouteRouteWithChildren,
   DeviceRouteRoute: DeviceRouteRouteWithChildren,
+  WorkspacesRouteRoute: WorkspacesRouteRouteWithChildren,
   AppRoute: AppRouteWithChildren,
   OnboardingRoute: OnboardingRoute,
 }

@@ -3,8 +3,8 @@ import { Loader2, Terminal } from "lucide-react";
 
 import { Button, ErrorMessage, SuccessMessage } from "#/components/ui";
 import { ApiError } from "#/services/api";
-import { useApprovalDetails, useDecideDevice } from "../hooks/index.ts";
-import { DeviceCard } from "./DeviceCard.tsx";
+import { useApprovalDetails, useDecideDevice } from "#/features/device/hooks";
+import { FocusedCard } from "#/components/shared";
 
 // One key/value line inside the device summary panel.
 function DetailRow({
@@ -51,23 +51,23 @@ function ApprovalScreen({ userCode }: { userCode?: string }) {
   // re-enter the one from their terminal.
   if (!userCode) {
     return (
-      <DeviceCard header={<Header />}>
+      <FocusedCard header={<Header />}>
         <ErrorMessage title="No device code — enter the code from your terminal again." />
         <Button asChild variant="outline" className="mt-5 w-full">
           <Link to="/device">Enter code</Link>
         </Button>
-      </DeviceCard>
+      </FocusedCard>
     );
   }
 
   if (isPending) {
     return (
-      <DeviceCard header={<Header />}>
+      <FocusedCard header={<Header />}>
         <div className="flex items-center justify-center gap-2 py-6 text-[13px] text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
           Loading request…
         </div>
-      </DeviceCard>
+      </FocusedCard>
     );
   }
 
@@ -75,13 +75,13 @@ function ApprovalScreen({ userCode }: { userCode?: string }) {
     // 404 = unknown or expired code; anything else, show the server's words.
     const notFound = error instanceof ApiError && error.status === 404;
     return (
-      <DeviceCard header={<Header />}>
+      <FocusedCard header={<Header />}>
         <ErrorMessage
           title={
             notFound ? "This code is invalid or has expired." : error.message
           }
         />
-      </DeviceCard>
+      </FocusedCard>
     );
   }
 
@@ -94,7 +94,7 @@ function ApprovalScreen({ userCode }: { userCode?: string }) {
 
   console.log({ decided, approved, denied, expired, settled });
   return (
-    <DeviceCard header={<Header />}>
+    <FocusedCard header={<Header />}>
       <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-muted/40 px-4 py-3.5">
         <DetailRow label="Device name">
           <span className="font-mono">{data.device_name}</span>
@@ -144,7 +144,7 @@ function ApprovalScreen({ userCode }: { userCode?: string }) {
           <ErrorMessage title="This request has expired." />
         </div>
       )}
-    </DeviceCard>
+    </FocusedCard>
   );
 }
 

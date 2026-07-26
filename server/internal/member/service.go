@@ -133,7 +133,9 @@ func (s *Service) Invite(ctx context.Context, workspaceID, invitedBy string, req
 	}
 
 	// Enqueue the invite email — a queue hiccup must not fail the request.
-	joinURL := fmt.Sprintf("%s/workspaces/join?token=%s", s.cfg.FrontendURL, rawToken)
+	// workspaceId is required by POST /members/join (:wid) — the token alone
+	// isn't enough for the frontend to build the request path.
+	joinURL := fmt.Sprintf("%s/workspaces/join?token=%s&workspaceId=%s", s.cfg.FrontendURL, rawToken, workspaceID)
 	job := email.EmailJob{
 		Kind: email.KindWorkspaceInvite,
 		To:   addr,
