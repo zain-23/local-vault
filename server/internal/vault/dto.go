@@ -97,11 +97,12 @@ type JoinRequest struct {
 
 // JoinResponse gives the joiner the snapshot, current peers, and its sealed DEK.
 type JoinResponse struct {
-	VaultID    string `json:"vault_id"`
-	Snapshot   []byte `json:"snapshot"`
-	Peers      []Peer `json:"peers"`
-	WrappedDEK []byte `json:"wrapped_dek"`
-	Message    string `json:"message,omitempty"` // "already a peer" when re-joining
+	VaultID     string `json:"vault_id"`
+	WorkspaceID string `json:"workspace_id"`
+	Snapshot    []byte `json:"snapshot"`
+	Peers       []Peer `json:"peers"`
+	WrappedDEK  []byte `json:"wrapped_dek"`
+	Message     string `json:"message,omitempty"` // "already a peer" when re-joining
 }
 
 

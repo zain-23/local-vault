@@ -6,55 +6,67 @@ import (
 	"path/filepath"
 )
 
+// Config is vault-local state stored in .lv/config.json.
+// Server URL is machine-global (internal/appstate) — not stored here.
 type Config struct {
-	SignalingServer string `json:"signaling_server"`
+	WorkspaceID string `json:"workspace_id,omitempty"`
+	VaultID     string `json:"vault_id,omitempty"`
+	DeviceID    string `json:"device_id,omitempty"`
+
+	// legacySignalingServer is read from old configs for optional heal only.
+	// It is never written back by Save.
+	legacySignalingServer string `json:"-"`
+}
+
+type fileConfig struct {
+	WorkspaceID     string `json:"workspace_id"`
+	VaultID         string `json:"vault_id"`
 	DeviceID        string `json:"device_id"`
-	VaultID         string `json:"vault_id"` // ← add this
+	SignalingServer string `json:"signaling_server"`
 }
 
 const configFile = "config.json"
 
-// defaultServerURL is used when SERVER_URL is unset and no address is
-// stored in config.json, so lv works out of the box for local dev.
-//
-// Declared as a var (not const) so release builds can override it via
-// -ldflags "-X .../internal/config.defaultServerURL=https://..." — the
-// production URL is injected from the build environment, never committed.
-// The runtime SERVER_URL env var still takes precedence over this value.
-var defaultServerURL = "http://localhost:8080"
-
 func Load(lvDir string) (*Config, error) {
-	serverURL := os.Getenv("SERVER_URL")
-	if serverURL == "" {
-		serverURL = defaultServerURL
-	}
-
 	configPath := filepath.Join(lvDir, configFile)
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return &Config{
-				SignalingServer: serverURL,
-			}, nil
+			return &Config{}, nil
 		}
 		return nil, err
 	}
 
-	var cfg Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	var fc fileConfig
+	if err := json.Unmarshal(data, &fc); err != nil {
 		return nil, err
 	}
-	// Heal configs written by older/broken inits that stored an empty
-	// server address.
-	if cfg.SignalingServer == "" {
-		cfg.SignalingServer = serverURL
-	}
-	return &cfg, nil
+	return &Config{
+		WorkspaceID:           fc.WorkspaceID,
+		VaultID:               fc.VaultID,
+		DeviceID:              fc.DeviceID,
+		legacySignalingServer: fc.SignalingServer,
+	}, nil
 }
+
+// LegacySignalingServer returns a signaling_server value from an old config
+// file, if any. Callers may one-time-heal into appstate; do not use as API base
+// when appstate already has a URL.
+func (c *Config) LegacySignalingServer() string { return c.legacySignalingServer }
 
 func Save(lvDir string, cfg *Config) error {
 	configPath := filepath.Join(lvDir, configFile)
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	// saveShape omits signaling_server so it is never written back.
+	out := struct {
+		WorkspaceID string `json:"workspace_id,omitempty"`
+		VaultID     string `json:"vault_id,omitempty"`
+		DeviceID    string `json:"device_id,omitempty"`
+	}{
+		WorkspaceID: cfg.WorkspaceID,
+		VaultID:     cfg.VaultID,
+		DeviceID:    cfg.DeviceID,
+	}
+	data, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		return err
 	}

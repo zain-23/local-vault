@@ -8,26 +8,26 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/zain-23/local-vault/internal/client"
+
+	"github.com/zain-23/local-vault/internal/api"
+	"github.com/zain-23/local-vault/internal/appstate"
+	"github.com/zain-23/local-vault/internal/authstore"
 	"github.com/zain-23/local-vault/internal/config"
 	"github.com/zain-23/local-vault/internal/identity"
 	internalsync "github.com/zain-23/local-vault/internal/sync"
+	"github.com/zain-23/local-vault/internal/ui"
 	"github.com/zain-23/local-vault/internal/vault"
 )
 
 var joinCmd = &cobra.Command{
 	Use:     "join TOKEN",
 	Short:   "Join a vault using a join token",
-	Example: "  lv join lv_join_a3f9b2c1xxx",
+	Example: "  lv join lv_join_a3f9b2c1xxx.<secret>",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Token = <public id>.<secret>. The secret never goes to the
-		// server in usable form; it unwraps the vault key locally.
 		parts := strings.SplitN(args[0], ".", 2)
 		if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-			return fmt.Errorf(
-				"invalid token format — expected lv_join_<id>.<secret>",
-			)
+			return fmt.Errorf("invalid token format — expected lv_join_<id>.<secret>")
 		}
 		tokenID := parts[0]
 		secret, err := base64.RawURLEncoding.DecodeString(parts[1])
@@ -39,38 +39,29 @@ var joinCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
 		lvDir := filepath.Join(dir, ".lv")
 
-		// Load identity
 		id, err := identity.Load(lvDir)
 		if err != nil {
 			return err
 		}
-
-		// Load config
 		cfg, err := config.Load(lvDir)
 		if err != nil {
 			return err
 		}
-
-		// Load vault
 		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}
 
-		// Connect to server
-		sc := client.New(cfg.SignalingServer, id.DeviceID)
-
-		fmt.Println("🔍 Verifying token...")
-		if err := sc.HealthCheck(); err != nil {
+		st, err := appstate.Load()
+		if err != nil {
 			return err
 		}
+		client := api.New(st.ServerURL)
 
-		// Join vault using token
-		// Server returns: vault ID + snapshot + all current peers
-		resp, err := sc.JoinVault(client.JoinRequest{
+		ui.Step("verifying token...")
+		resp, err := client.Join(api.JoinRequest{
 			Token:           tokenID,
 			Verifier:        internalsync.DeriveVerifier(secret),
 			DeviceID:        id.DeviceID,
@@ -82,102 +73,68 @@ var joinCmd = &cobra.Command{
 			return fmt.Errorf("failed to join: %w", err)
 		}
 
-		fmt.Printf("✅ Joined vault: %s\n", resp.VaultID)
-
-		// Save vault ID to config
 		cfg.VaultID = resp.VaultID
+		cfg.WorkspaceID = resp.WorkspaceID
 		cfg.DeviceID = id.DeviceID
-		config.Save(lvDir, cfg)
+		if err := config.Save(lvDir, cfg); err != nil {
+			return err
+		}
 
-		// Save ALL peers from server immediately
-		// This establishes full mesh from day one
-		// No need to wait for lv push from team lead
-		fmt.Printf("🔗 Discovering %d peer(s)...\n", len(resp.Peers))
+		ui.Success("joined vault %s", resp.VaultID)
+		ui.Step("discovering %d peer(s)...", len(resp.Peers))
 		for _, peer := range resp.Peers {
-			// Skip ourselves
 			if peer.DeviceID == id.DeviceID {
 				continue
 			}
-
-			err = v.AddPeer(vault.Peer{
-				DeviceID:        peer.DeviceID,
-				DeviceName:      peer.DeviceName,
-				PublicKey:       peer.PublicKey,
-				X25519PublicKey: peer.X25519PublicKey,
-			})
-			if err == nil {
-				fmt.Printf("  ✅ Peer saved: %s\n", peer.DeviceName)
+			if err := v.AddPeer(apiPeerToVault(peer)); err == nil {
+				ui.Success("peer saved: %s", peer.DeviceName)
 			}
 		}
 
-		// Unwrap the shared vault key from the token secret.
 		if resp.WrappedDEK == nil {
-			fmt.Println()
-			fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-			fmt.Printf("✅ Joined vault: %s\n", resp.VaultID)
-			fmt.Printf("👥 %d peer(s) in vault\n", len(resp.Peers))
-			fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-			fmt.Println()
-			fmt.Println("⚠️  This invite predates encrypted-key support —")
-			fmt.Println("   you joined as a peer but cannot decrypt secrets.")
-			fmt.Println("   Ask the owner for a new invite: lv invite --name ...")
+			ui.Warn("this invite predates encrypted-key support")
+			ui.Hint("ask the owner for a new invite: lv invite --name ...")
 			return nil
 		}
 
 		dek, err := internalsync.UnwrapKey(resp.WrappedDEK, secret)
 		if err != nil {
-			return fmt.Errorf(
-				"could not unwrap vault key — token may be from an older version; ask for a new invite",
-			)
+			return fmt.Errorf("could not unwrap vault key — ask for a new invite")
 		}
 		if err := v.SetDataKey(dek); err != nil {
 			return err
 		}
 
-		// Decrypt and merge snapshot if available.
 		if resp.Snapshot == nil {
-			fmt.Println()
-			fmt.Println("⚠️  No secrets pushed yet.")
-			fmt.Println("   They will arrive on the next: lv sync")
-			fmt.Println()
-			fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-			fmt.Printf("✅ Joined vault: %s\n", resp.VaultID)
-			fmt.Printf("👥 %d peer(s) in vault\n", len(resp.Peers))
-			fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-			return nil
-		}
-
-		fmt.Println("📦 Downloading vault snapshot...")
-
-		rawSecrets, err := internalsync.DecryptSnapshot(resp.Snapshot, dek)
-		if err != nil {
-			return fmt.Errorf("snapshot decryption failed — vault key mismatch")
-		}
-
-		secrets := make([]vault.SecretEntry, len(rawSecrets))
-		for i, s := range rawSecrets {
-			secrets[i] = vault.SecretEntry{
-				Key:       s.Key,
-				Value:     s.Value,
-				Env:       s.Env,
-				UpdatedAt: s.UpdatedAt,
+			ui.Warn("no secrets pushed yet — they will arrive on: lv sync")
+		} else {
+			ui.Step("downloading vault snapshot...")
+			rawSecrets, err := internalsync.DecryptSnapshot(resp.Snapshot, dek)
+			if err != nil {
+				return fmt.Errorf("snapshot decryption failed — vault key mismatch")
 			}
+			secrets := make([]vault.SecretEntry, len(rawSecrets))
+			for i, s := range rawSecrets {
+				secrets[i] = vault.SecretEntry{
+					Key: s.Key, Value: s.Value, Env: s.Env, UpdatedAt: s.UpdatedAt,
+				}
+			}
+			count, err := v.MergeSecrets(secrets)
+			if err != nil {
+				return err
+			}
+			ui.Success("received %d secret(s)", count)
 		}
 
-		count, err := v.MergeSecrets(secrets)
-		if err != nil {
-			return err
+		ui.Header("Joined")
+		ui.KeyValue("Vault", resp.VaultID)
+		ui.KeyValue("Workspace", resp.WorkspaceID)
+		ui.KeyValue("Peers", fmt.Sprintf("%d", len(resp.Peers)))
+		ui.Hint("lv inject -- npm run dev")
+
+		if _, err := authstore.Load(); err != nil {
+			ui.Hint("run: lv login   before push/sync")
 		}
-		fmt.Printf("✅ Received %d secret(s)\n", count)
-
-		fmt.Println()
-		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		fmt.Printf("✅ Joined vault: %s\n", resp.VaultID)
-		fmt.Printf("👥 %d peer(s) in vault\n", len(resp.Peers))
-		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		fmt.Println()
-		fmt.Println("Run: lv inject -- npm run dev")
-
 		return nil
 	},
 }

@@ -28,6 +28,7 @@ import { Route as AuthVerifyEmailRouteImport } from './routes/auth/verify-email'
 import { Route as DeviceIndexRouteImport } from './routes/device/index'
 import { Route as DeviceConfirmationRouteImport } from './routes/device/confirmation'
 import { Route as WorkspacesJoinRouteImport } from './routes/workspaces/join'
+import { Route as AppVaultsIndexRouteImport } from './routes/_app/vaults/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -123,6 +124,11 @@ const WorkspacesJoinRoute = WorkspacesJoinRouteImport.update({
   path: '/join',
   getParentRoute: () => WorkspacesRouteRoute,
 } as any)
+const AppVaultsIndexRoute = AppVaultsIndexRouteImport.update({
+  id: '/vaults/',
+  path: '/vaults/',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/device/confirmation': typeof DeviceConfirmationRoute
   '/workspaces/join': typeof WorkspacesJoinRoute
   '/device/': typeof DeviceIndexRoute
+  '/vaults/': typeof AppVaultsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/device/confirmation': typeof DeviceConfirmationRoute
   '/workspaces/join': typeof WorkspacesJoinRoute
   '/device': typeof DeviceIndexRoute
+  '/vaults': typeof AppVaultsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -184,6 +192,7 @@ export interface FileRoutesById {
   '/device/confirmation': typeof DeviceConfirmationRoute
   '/workspaces/join': typeof WorkspacesJoinRoute
   '/device/': typeof DeviceIndexRoute
+  '/_app/vaults/': typeof AppVaultsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -206,6 +215,7 @@ export interface FileRouteTypes {
     | '/device/confirmation'
     | '/workspaces/join'
     | '/device/'
+    | '/vaults/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
     | '/device/confirmation'
     | '/workspaces/join'
     | '/device'
+    | '/vaults'
   id:
     | '__root__'
     | '/'
@@ -246,6 +257,7 @@ export interface FileRouteTypes {
     | '/device/confirmation'
     | '/workspaces/join'
     | '/device/'
+    | '/_app/vaults/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -392,6 +404,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WorkspacesJoinRouteImport
       parentRoute: typeof WorkspacesRouteRoute
     }
+    '/_app/vaults/': {
+      id: '/_app/vaults/'
+      path: '/vaults'
+      fullPath: '/vaults/'
+      preLoaderRoute: typeof AppVaultsIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -451,10 +470,12 @@ const WorkspacesRouteRouteWithChildren = WorkspacesRouteRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppMembersRoute: typeof AppMembersRoute
+  AppVaultsIndexRoute: typeof AppVaultsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppMembersRoute: AppMembersRoute,
+  AppVaultsIndexRoute: AppVaultsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

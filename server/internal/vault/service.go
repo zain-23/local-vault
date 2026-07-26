@@ -291,11 +291,12 @@ func (s *Service) Join(ctx context.Context, req JoinRequest) (*JoinResponse, err
 	// Idempotent: re-joining just returns the current state.
 	if hasPeer(v, req.DeviceID) {
 		return &JoinResponse{
-			VaultID:    v.ID,
-			Snapshot:   v.Snapshot,
-			Peers:      v.Peers,
-			WrappedDEK: tok.WrappedDEK,
-			Message:    "already a peer",
+			VaultID:     v.ID,
+			WorkspaceID: v.WorkspaceID,
+			Snapshot:    v.Snapshot,
+			Peers:       v.Peers,
+			WrappedDEK:  tok.WrappedDEK,
+			Message:     "already a peer",
 		}, nil
 	}
 
@@ -320,10 +321,11 @@ func (s *Service) Join(ctx context.Context, req JoinRequest) (*JoinResponse, err
 	})
 
 	return &JoinResponse{
-		VaultID:    v.ID,
-		Snapshot:   v.Snapshot,
-		Peers:      append(v.Peers, peer), // include the just-added peer in the reply
-		WrappedDEK: tok.WrappedDEK,
+		VaultID:     v.ID,
+		WorkspaceID: v.WorkspaceID,
+		Snapshot:    v.Snapshot,
+		Peers:       append(v.Peers, peer), // include the just-added peer in the reply
+		WrappedDEK:  tok.WrappedDEK,
 	}, nil
 }
 

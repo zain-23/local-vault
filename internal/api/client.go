@@ -43,7 +43,11 @@ type errorBody struct {
 // do performs a request. When authed, it attaches the bearer token and, on 401,
 // refreshes once and retries.
 func (c *Client) do(method, path string, body, out any, authed bool) error {
-	status, respBody, err := c.send(method, path, body, authed)
+	return c.doWithHeaders(method, path, body, out, authed, nil)
+}
+
+func (c *Client) doWithHeaders(method, path string, body, out any, authed bool, headers map[string]string) error {
+	status, respBody, err := c.send(method, path, body, authed, headers)
 	if err != nil {
 		return err
 	}
@@ -53,7 +57,7 @@ func (c *Client) do(method, path string, body, out any, authed bool) error {
 			_ = authstore.Clear()
 			return ErrNotLoggedIn
 		}
-		status, respBody, err = c.send(method, path, body, authed)
+		status, respBody, err = c.send(method, path, body, authed, headers)
 		if err != nil {
 			return err
 		}
@@ -74,6 +78,9 @@ func (c *Client) do(method, path string, body, out any, authed bool) error {
 		if err := json.Unmarshal(respBody, &env); err != nil {
 			return fmt.Errorf("invalid server response: %w", err)
 		}
+		if len(env.Data) == 0 || string(env.Data) == "null" {
+			return nil
+		}
 		if err := json.Unmarshal(env.Data, out); err != nil {
 			return fmt.Errorf("invalid server response data: %w", err)
 		}
@@ -82,7 +89,7 @@ func (c *Client) do(method, path string, body, out any, authed bool) error {
 }
 
 // send issues one HTTP request and returns status + body.
-func (c *Client) send(method, path string, body any, authed bool) (int, []byte, error) {
+func (c *Client) send(method, path string, body any, authed bool, headers map[string]string) (int, []byte, error) {
 	var reader io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -97,6 +104,9 @@ func (c *Client) send(method, path string, body any, authed bool) (int, []byte, 
 		return 0, nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
 
 	if authed {
 		tok, err := c.currentTokens()

@@ -27,12 +27,12 @@ import { WorkspaceSwitcher } from "./WorkspaceSwitcher.tsx";
 interface NavItem {
   title: string;
   icon: LucideIcon;
-  to?: "/members";
+  to?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { title: "Dashboard", icon: LayoutDashboard },
-  { title: "Vaults", icon: Vault },
+  { title: "Vaults", icon: Vault, to: "/vaults" },
   { title: "Members", icon: Users, to: "/members" },
   { title: "Audit log", icon: ScrollText },
   { title: "Settings", icon: Settings },
@@ -59,7 +59,11 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     asChild
                     tooltip={item.title}
-                    isActive={pathname === item.to}
+                    isActive={
+                      pathname === item.to ||
+                      (item.to !== undefined &&
+                        pathname.startsWith(`${item.to}/`))
+                    }
                   >
                     <Link to={item.to}>
                       <item.icon />

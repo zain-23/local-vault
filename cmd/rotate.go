@@ -9,10 +9,10 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
-	"github.com/zain-23/local-vault/internal/client"
-	"github.com/zain-23/local-vault/internal/config"
+	"github.com/zain-23/local-vault/internal/api"
 	"github.com/zain-23/local-vault/internal/identity"
 	internalsync "github.com/zain-23/local-vault/internal/sync"
+	"github.com/zain-23/local-vault/internal/ui"
 	"github.com/zain-23/local-vault/internal/vault"
 	"golang.org/x/term"
 )
@@ -65,120 +65,100 @@ var rotateCmd = &cobra.Command{
 			for _, key := range args {
 				existing, err := v.Get(key, envFlag)
 				if err != nil {
-					fmt.Printf("⚠️  Skipping %s — not found\n", key)
+					ui.Warn("skipping %s — not found", key)
 					continue
 				}
 
-				fmt.Printf("Key     : %s\n", key)
-				fmt.Printf("Current : %s\n", maskValue(existing))
-				fmt.Printf("New value: ")
+				ui.KeyValue("Key", key)
+				ui.KeyValue("Current", maskValue(existing))
+				fmt.Fprint(os.Stderr, "New value: ")
 
 				newValueBytes, err := term.ReadPassword(int(syscall.Stdin))
-				fmt.Println()
+				fmt.Fprintln(os.Stderr)
 				if err != nil {
 					return err
 				}
 
 				newValue := string(newValueBytes)
 				if newValue == "" {
-					fmt.Printf("⚠️  Empty value — skipping %s\n\n", key)
+					ui.Warn("empty value — skipping %s", key)
 					continue
 				}
 
 				if err := v.Add(key, newValue, envFlag); err != nil {
-					fmt.Printf("⚠️  Failed to update %s: %v\n", key, err)
+					ui.Warn("failed to update %s: %v", key, err)
 					continue
 				}
 
-				fmt.Printf("✅ %s rotated\n\n", key)
+				ui.Success("%s rotated", key)
 				rotatedKeys = append(rotatedKeys, key)
 			}
 		}
 
 		if len(rotatedKeys) == 0 {
-			fmt.Println("No secrets were rotated.")
+			ui.Info("no secrets were rotated")
 			return nil
 		}
 
-		// Summary
-		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-		fmt.Printf("✅ Rotated %d secret(s):\n", len(rotatedKeys))
+		ui.Success("rotated %d secret(s)", len(rotatedKeys))
 		for _, k := range rotatedKeys {
-			fmt.Printf("   → %s\n", k)
+			ui.Info("  → %s", k)
 		}
-		fmt.Println()
 
-		// Push to peers
 		peers := v.GetPeers()
 		if len(peers) == 0 {
-			fmt.Println("💡 No peers to notify")
+			ui.Hint("no peers to notify")
 			return nil
 		}
 
-		// Load identity and config for pushing
 		id, err := identity.Load(lvDir)
 		if err != nil {
 			return err
 		}
-
-		cfg, err := config.Load(lvDir)
+		if _, err := requireLinkedConfig(lvDir); err != nil {
+			ui.Warn("vault not linked — run lv push manually after linking")
+			return nil
+		}
+		client, err := requireAPI()
 		if err != nil {
 			return err
-		}
-
-		sc := client.New(cfg.SignalingServer, id.DeviceID)
-		if err := sc.HealthCheck(); err != nil {
-			fmt.Println("⚠️  Could not reach server — run lv push manually")
-			return nil
 		}
 
 		vaultSecrets := v.GetSecretEntries()
 		syncSecrets := make([]internalsync.SecretEntry, len(vaultSecrets))
 		for i, s := range vaultSecrets {
 			syncSecrets[i] = internalsync.SecretEntry{
-				Key:       s.Key,
-				Value:     s.Value,
-				Env:       s.Env,
-				UpdatedAt: s.UpdatedAt,
+				Key: s.Key, Value: s.Value, Env: s.Env, UpdatedAt: s.UpdatedAt,
 			}
 		}
 
-		fmt.Printf("📤 Notifying %d peer(s)...\n", len(peers))
-
+		ui.Step("notifying %d peer(s)...", len(peers))
 		for _, peer := range peers {
 			if peer.X25519PublicKey == nil {
 				continue
 			}
-
 			payload, err := internalsync.EncryptForPeer(
-				syncSecrets,
-				id.X25519PrivateKey,
-				peer.X25519PublicKey,
-				id.DeviceID,
+				syncSecrets, id.X25519PrivateKey, peer.X25519PublicKey, id.DeviceID,
 			)
 			if err != nil {
-				fmt.Printf("  ⚠️  Failed to encrypt for %s\n", peer.DeviceName)
+				ui.Warn("failed to encrypt for %s", peer.DeviceName)
 				continue
 			}
-
-			err = sc.SendMessage(client.SendMessageRequest{
+			err = client.SendMessage(api.SendMessageRequest{
 				ForDeviceID:   peer.DeviceID,
 				FromDeviceID:  id.DeviceID,
 				FromPublicKey: id.X25519PublicKey,
 				Payload:       payload,
 			})
 			if err != nil {
-				fmt.Printf("  ⚠️  Failed to notify %s\n", peer.DeviceName)
+				ui.Warn("failed to notify %s", peer.DeviceName)
 				continue
 			}
-
-			fmt.Printf("  ✅ Notified %s\n", peer.DeviceName)
+			ui.Success("notified %s", peer.DeviceName)
 		}
 
-		fmt.Println()
-		fmt.Println("✅ All done")
-		fmt.Println("   Peers will get new values on next: lv sync")
-
+		ui.Success("all done")
+		ui.Hint("peers will get new values on next: lv sync")
 		return nil
 	},
 }
@@ -187,7 +167,7 @@ var rotateCmd = &cobra.Command{
 func rotateWithEditor(v *vault.Vault, env string) ([]string, error) {
 	secrets := v.List(env)
 	if len(secrets) == 0 {
-		fmt.Println("No secrets found.")
+		ui.Info("no secrets found")
 		return nil, nil
 	}
 
@@ -239,9 +219,8 @@ func rotateWithEditor(v *vault.Vault, env string) ([]string, error) {
 
 	// Open editor
 	editor := getEditor()
-	fmt.Printf("📝 Opening %s...\n", editor)
-	fmt.Println("   Edit values, save and close to apply changes")
-	fmt.Println()
+	ui.Step("opening %s...", editor)
+	ui.Hint("edit values, save and close to apply changes")
 
 	editorCmd := exec.Command(editor, tmpFile.Name())
 	editorCmd.Stdin = os.Stdin
@@ -265,14 +244,14 @@ func rotateWithEditor(v *vault.Vault, env string) ([]string, error) {
 	for key, newValue := range newValues {
 		originalValue, exists := originalValues[key]
 		if !exists {
-			fmt.Printf("⚠️  Skipping new key %s — use lv add instead\n", key)
+			ui.Warn("skipping new key %s — use lv add instead", key)
 			continue
 		}
 		if newValue == originalValue {
 			continue // unchanged — skip
 		}
 		if newValue == "" {
-			fmt.Printf("⚠️  Empty value for %s — skipping\n", key)
+			ui.Warn("empty value for %s — skipping", key)
 			continue
 		}
 
@@ -286,7 +265,7 @@ func rotateWithEditor(v *vault.Vault, env string) ([]string, error) {
 		}
 
 		if err := v.Add(key, newValue, envValue); err != nil {
-			fmt.Printf("⚠️  Failed to update %s: %v\n", key, err)
+			ui.Warn("failed to update %s: %v", key, err)
 			continue
 		}
 
