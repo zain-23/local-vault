@@ -16,6 +16,7 @@ import { Route as DeviceRouteRouteImport } from './routes/device/route'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as WorkspacesRouteRouteImport } from './routes/workspaces/route'
 import { Route as AppMembersRouteImport } from './routes/_app/members'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AuthCheckEmailRouteImport } from './routes/auth/check-email'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
@@ -63,6 +64,11 @@ const WorkspacesRouteRoute = WorkspacesRouteRouteImport.update({
 const AppMembersRoute = AppMembersRouteImport.update({
   id: '/members',
   path: '/members',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
 const AuthCheckEmailRoute = AuthCheckEmailRouteImport.update({
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/workspaces': typeof WorkspacesRouteRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/members': typeof AppMembersRoute
+  '/settings': typeof AppSettingsRoute
   '/auth/check-email': typeof AuthCheckEmailRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/workspaces': typeof WorkspacesRouteRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/members': typeof AppMembersRoute
+  '/settings': typeof AppSettingsRoute
   '/auth/check-email': typeof AuthCheckEmailRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/_app/members': typeof AppMembersRoute
+  '/_app/settings': typeof AppSettingsRoute
   '/auth/check-email': typeof AuthCheckEmailRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
@@ -212,6 +221,7 @@ export interface FileRouteTypes {
     | '/workspaces'
     | '/onboarding'
     | '/members'
+    | '/settings'
     | '/auth/check-email'
     | '/auth/forgot-password'
     | '/auth/login'
@@ -233,6 +243,7 @@ export interface FileRouteTypes {
     | '/workspaces'
     | '/onboarding'
     | '/members'
+    | '/settings'
     | '/auth/check-email'
     | '/auth/forgot-password'
     | '/auth/login'
@@ -256,6 +267,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/onboarding'
     | '/_app/members'
+    | '/_app/settings'
     | '/auth/check-email'
     | '/auth/forgot-password'
     | '/auth/login'
@@ -330,6 +342,13 @@ declare module '@tanstack/react-router' {
       path: '/members'
       fullPath: '/members'
       preLoaderRoute: typeof AppMembersRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
     '/auth/check-email': {
@@ -489,12 +508,14 @@ const WorkspacesRouteRouteWithChildren = WorkspacesRouteRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppMembersRoute: typeof AppMembersRoute
+  AppSettingsRoute: typeof AppSettingsRoute
   AppVaultsVaultIdRoute: typeof AppVaultsVaultIdRoute
   AppVaultsIndexRoute: typeof AppVaultsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppMembersRoute: AppMembersRoute,
+  AppSettingsRoute: AppSettingsRoute,
   AppVaultsVaultIdRoute: AppVaultsVaultIdRoute,
   AppVaultsIndexRoute: AppVaultsIndexRoute,
 }

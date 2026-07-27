@@ -12,10 +12,10 @@ import (
 
 var revokeTokenCmd = &cobra.Command{
 	Use:   "revoke-token TOKEN",
-	Short: "Revoke a join token",
+	Short: "Revoke a legacy join token (prefer email invites)",
 	Example: `  lv revoke-token lv_join_a3f9b2c1xxx
 
-  Tip: run "lv invite --list" to see all active tokens`,
+  Prefer: lv invite --revoke teammate@company.com`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		tokenID := args[0]
@@ -34,6 +34,7 @@ var revokeTokenCmd = &cobra.Command{
 			return err
 		}
 
+		ui.Warn("join tokens are legacy — prefer: lv invite --revoke <email>")
 		if err := client.RevokeToken(cfg.WorkspaceID, cfg.VaultID, tokenID); err != nil {
 			return mapNotLoggedIn(fmt.Errorf("failed to revoke token: %w", err))
 		}

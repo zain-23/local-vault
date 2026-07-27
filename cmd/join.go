@@ -28,6 +28,9 @@ var joinCmd = &cobra.Command{
 		if code == "" {
 			return fmt.Errorf("provide the invite code from your email")
 		}
+		if strings.HasPrefix(strings.ToLower(code), "lv_join_") || strings.Contains(code, ".") {
+			return fmt.Errorf("join tokens are no longer supported\n  Ask an owner/admin for a new invite: lv invite you@company.com\n  Then run: lv join ABCD-1234")
+		}
 
 		dir, err := os.Getwd()
 		if err != nil {
@@ -48,6 +51,7 @@ var joinCmd = &cobra.Command{
 			return err
 		}
 
+		code = normalizeJoinCode(code)
 		ui.Step("joining vault...")
 		resp, err := client.JoinByCode(api.JoinByCodeRequest{
 			Code:            code,
@@ -72,6 +76,9 @@ var joinCmd = &cobra.Command{
 		}
 
 		ui.Success("joined vault %s", resp.VaultID)
+		if resp.Message != "" {
+			ui.Info("%s", resp.Message)
+		}
 		for _, peer := range resp.Peers {
 			if peer.DeviceID == id.DeviceID {
 				continue
@@ -82,7 +89,7 @@ var joinCmd = &cobra.Command{
 		if resp.WrappedDEK == nil {
 			return fmt.Errorf("invite is missing vault key — ask for a new invite")
 		}
-		dek, err := internalsync.UnwrapKey(resp.WrappedDEK, []byte(normalizeJoinCode(code)))
+		dek, err := internalsync.UnwrapKey(resp.WrappedDEK, []byte(code))
 		if err != nil {
 			return fmt.Errorf("could not unwrap vault key — wrong code or corrupted invite")
 		}

@@ -114,7 +114,7 @@ var initCmd = &cobra.Command{
 		ui.Success("vault initialized — %s", resp.VaultID)
 		ui.Hint("lv add DATABASE_URL=postgres://...")
 		ui.Hint("lv push")
-		ui.Hint("lv invite --name \"Ahmed\"")
+		ui.Hint("lv invite teammate@company.com")
 		return nil
 	},
 }

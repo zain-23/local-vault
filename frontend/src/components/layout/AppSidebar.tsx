@@ -32,7 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { title: "Vaults", icon: Vault, to: "/vaults" },
   { title: "Members", icon: Users, to: "/members" },
   { title: "Audit log", icon: ScrollText },
-  { title: "Settings", icon: Settings },
+  { title: "Settings", icon: Settings, to: "/settings" },
 ];
 
 export function AppSidebar() {

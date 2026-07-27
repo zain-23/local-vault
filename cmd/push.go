@@ -80,7 +80,7 @@ var pushCmd = &cobra.Command{
 
 		peers := v.GetPeers()
 		if len(peers) == 0 {
-			ui.Hint("no teammates yet — invite one: lv invite --name \"Ahmed\"")
+			ui.Hint("no teammates yet — invite one: lv invite teammate@company.com")
 			return nil
 		}
 

@@ -69,6 +69,8 @@ var inviteCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("failed to generate join code: %w", err)
 		}
+		// Wrap with the same normalized form the invitee will type into `lv join`.
+		code = normalizeJoinCode(code)
 		wrappedDEK, err := internalsync.WrapKey(dek, []byte(code))
 		if err != nil {
 			return err
@@ -119,8 +121,12 @@ func revokeCollaborator(client *api.Client, workspaceID, vaultID, emailOrID stri
 	}
 	var target *api.Collaborator
 	for i := range list {
-		if list[i].ID == emailOrID || strings.EqualFold(list[i].Email, emailOrID) {
-			target = &list[i]
+		c := &list[i]
+		if c.Status != "pending" {
+			continue
+		}
+		if c.ID == emailOrID || strings.EqualFold(c.Email, emailOrID) {
+			target = c
 			break
 		}
 	}
