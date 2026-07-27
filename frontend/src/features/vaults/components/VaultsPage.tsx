@@ -14,9 +14,7 @@ export function VaultsPage() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Vaults</h1>
         <p className="text-sm text-muted-foreground">
-          {isLoading
-            ? "Loading vaults…"
-            : `${vaults.length} vault${vaults.length === 1 ? "" : "s"} in this workspace`}
+          Manage the vaults in your workspace.
         </p>
       </div>
 
