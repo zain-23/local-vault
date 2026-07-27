@@ -5,10 +5,12 @@ import { toast } from "sonner";
 import { Button, Input, Label } from "#/components/ui";
 import { meQuery } from "#/features/auth/api";
 import { SettingsBlock } from "#/features/settings/components/SettingsBlock.tsx";
+import { useUpdateProfile } from "#/features/settings/hooks";
 import { formatMemberSince, initialsFromName } from "#/features/settings/utils";
 
 export function ProfileSection() {
   const { data: user } = useQuery(meQuery);
+  const updateProfile = useUpdateProfile();
   const [name, setName] = useState(user?.name ?? "");
 
   useEffect(() => {
@@ -17,6 +19,15 @@ export function ProfileSection() {
 
   const dirty = Boolean(user && name.trim() !== user.name);
   const initials = initialsFromName(name || user?.name || user?.email || "?");
+
+  const onSave = () => {
+    const trimmedName = name.trim();
+    if (name.length < 2) {
+      toast.error("Display name must be at least 2 characters");
+      return;
+    }
+    updateProfile.mutate({ name: trimmedName });
+  };
 
   return (
     <div>
@@ -73,9 +84,8 @@ export function ProfileSection() {
       <div className="flex justify-end pt-4">
         <Button
           disabled={!dirty}
-          onClick={() => {
-            toast.success("Profile saved");
-          }}
+          isLoading={updateProfile.isPending}
+          onClick={onSave}
         >
           Save changes
         </Button>

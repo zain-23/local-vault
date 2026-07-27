@@ -1,24 +1,94 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Badge, Button, Input, Label } from "#/components/ui";
 import { meQuery } from "#/features/auth/api";
 import { SettingsBlock } from "#/features/settings/components/SettingsBlock.tsx";
+import {
+  useChangePassword,
+  useDisable2FA,
+  useEnable2FA,
+  useRevokeOtherSessions,
+  useVerify2FA,
+} from "#/features/settings/hooks";
 import { cn } from "#/lib/utils.ts";
 
 export function SecuritySection() {
   const { data: user } = useQuery(meQuery);
-  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-  const [setupOpen, setSetupOpen] = useState(false);
+
   const [totpCode, setTotpCode] = useState("");
+  const [disableCode, setDisableCode] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
 
-  useEffect(() => {
-    if (user) setTwoFactorEnabled(user.two_factor_enabled);
-  }, [user]);
+  const changePassword = useChangePassword();
+  const enable2FA = useEnable2FA();
+  const verify2FA = useVerify2FA();
+  const disable2FA = useDisable2FA();
+  const revokeOtherSessions = useRevokeOtherSessions();
+
+  const twoFactorEnabled = user?.two_factor_enabled ?? false;
+  const setup = enable2FA.data?.data;
+
+  function updatePassword() {
+    if (!currentPassword || !newPassword) {
+      toast.error("Fill in current and new password");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+    changePassword.mutate(
+      { current_password: currentPassword, new_password: newPassword },
+      {
+        onSuccess: () => {
+          setCurrentPassword("");
+          setNewPassword("");
+          setConfirmPassword("");
+        },
+      },
+    );
+  }
+
+  function confirm2FA() {
+    if (totpCode.trim().length !== 6) {
+      toast.error("Enter the 6-digit code from your app");
+      return;
+    }
+    verify2FA.mutate(totpCode.trim(), {
+      onSuccess: (response) => {
+        setBackupCodes(response.data.backup_codes);
+        setTotpCode("");
+        enable2FA.reset();
+        toast.success("Two-factor authentication enabled");
+      },
+    });
+  }
+
+  function confirmDisable2FA() {
+    if (!disableCode.trim()) {
+      toast.error("Enter a code from your authenticator app or backup codes");
+      return;
+    }
+    const code = disableCode.trim();
+    disable2FA.mutate(
+      /^\d{6}$/.test(code) ? { totp_code: code } : { backup_code: code },
+      {
+        onSuccess: () => {
+          setDisableCode("");
+          setBackupCodes(null);
+        },
+      },
+    );
+  }
 
   return (
     <div>
@@ -62,24 +132,9 @@ export function SecuritySection() {
         />
         <div className="flex justify-end">
           <Button
-            onClick={() => {
-              if (!currentPassword || !newPassword) {
-                toast.error("Fill in current and new password");
-                return;
-              }
-              if (newPassword !== confirmPassword) {
-                toast.error("New passwords do not match");
-                return;
-              }
-              if (newPassword.length < 8) {
-                toast.error("Password must be at least 8 characters");
-                return;
-              }
-              setCurrentPassword("");
-              setNewPassword("");
-              setConfirmPassword("");
-              toast.success("Password updated");
-            }}
+            isLoading={changePassword.isPending}
+            disabled={changePassword.isPending}
+            onClick={updatePassword}
           >
             Update password
           </Button>
@@ -106,55 +161,46 @@ export function SecuritySection() {
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {twoFactorEnabled
-              ? "Protects login with a one-time code · 6 backup codes left"
+              ? "Protects login with a one-time code"
               : "Not set up yet"}
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {twoFactorEnabled ? (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => toast.message("Backup codes (UI only for now)")}
-              >
-                View backup codes
-              </Button>
+        {twoFactorEnabled ? (
+          <div className="flex flex-col gap-3">
+            <Field
+              id="totp-disable"
+              label="Authenticator or backup code"
+              placeholder="Enter a verification code"
+              inputClassName="font-mono"
+              value={disableCode}
+              onChange={setDisableCode}
+            />
+            <div className="flex justify-end">
               <Button
                 size="sm"
                 variant="destructive"
-                onClick={() => {
-                  setTwoFactorEnabled(false);
-                  setSetupOpen(false);
-                  toast.success("Two-factor authentication disabled");
-                }}
+                disabled={disable2FA.isPending}
+                onClick={confirmDisable2FA}
               >
-                Disable
+                {disable2FA.isPending ? "Disabling..." : "Disable"}
               </Button>
-            </>
-          ) : (
-            <Button
-              size="sm"
-              variant={setupOpen ? "outline" : "default"}
-              onClick={() => setSetupOpen((open) => !open)}
-            >
-              {setupOpen ? "Cancel setup" : "Enable 2FA"}
-            </Button>
-          )}
-        </div>
-
-        {setupOpen && !twoFactorEnabled ? (
-          <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-3.5">
-            <div className="mx-auto flex size-30 items-center justify-center rounded-lg border border-dashed border-border-strong font-mono text-[11px] text-muted-foreground">
-              QR PLACEHOLDER
             </div>
+          </div>
+        ) : setup ? (
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-3.5">
             <p className="text-center text-xs text-muted-foreground">
-              Secret{" "}
-              <span className="font-mono text-foreground">
-                JBSW Y3DP EHPK 3PXP
-              </span>
+              Add this setup key to your authenticator app, then enter its code.
             </p>
+            <p className="break-all text-center font-mono text-xs text-foreground">
+              {setup.secret}
+            </p>
+            <a
+              className="text-center text-xs text-primary underline underline-offset-4"
+              href={setup.otpauth_url}
+            >
+              Open in authenticator app
+            </a>
             <Field
               id="totp-setup"
               label="Verification code"
@@ -163,20 +209,37 @@ export function SecuritySection() {
               value={totpCode}
               onChange={setTotpCode}
             />
-            <Button
-              onClick={() => {
-                if (totpCode.trim().length < 6) {
-                  toast.error("Enter the 6-digit code from your app");
-                  return;
-                }
-                setTwoFactorEnabled(true);
-                setSetupOpen(false);
-                setTotpCode("");
-                toast.success("Two-factor authentication enabled");
-              }}
-            >
-              Confirm and enable
+            <Button disabled={verify2FA.isPending} onClick={confirm2FA}>
+              {verify2FA.isPending ? "Verifying..." : "Confirm and enable"}
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => enable2FA.reset()}
+            >
+              Cancel setup
+            </Button>
+          </div>
+        ) : (
+          <Button
+            isLoading={enable2FA.isPending}
+            onClick={() => enable2FA.mutate()}
+          >
+            Enable 2FA
+          </Button>
+        )}
+
+        {backupCodes ? (
+          <div className="rounded-lg border border-warning/40 bg-warning/10 p-3.5">
+            <p className="text-sm font-medium">Save these backup codes now</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              They are shown only once and each can be used once.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2 font-mono text-xs">
+              {backupCodes.map((code) => (
+                <span key={code}>{code}</span>
+              ))}
+            </div>
           </div>
         ) : null}
       </SettingsBlock>
@@ -188,7 +251,8 @@ export function SecuritySection() {
       >
         <Button
           variant="destructive"
-          onClick={() => toast.success("Other sessions signed out")}
+          isLoading={revokeOtherSessions.isPending}
+          onClick={() => revokeOtherSessions.mutate()}
         >
           Sign out other sessions
         </Button>
@@ -228,7 +292,7 @@ function Field({
         placeholder={placeholder}
         autoComplete={autoComplete}
         className={inputClassName}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
       />
     </div>
   );

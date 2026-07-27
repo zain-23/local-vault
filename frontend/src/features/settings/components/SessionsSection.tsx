@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import {
   Badge,
@@ -10,10 +10,17 @@ import {
   TableHeader,
   TableRow,
 } from "#/components/ui";
-import { MOCK_SESSIONS, type MockSession } from "#/features/settings/mock.ts";
+import { sessionsQuery } from "#/features/settings/api";
+import {
+  useRevokeOtherSessions,
+  useRevokeSession,
+} from "#/features/settings/hooks";
+import { formatMemberSince } from "#/features/settings/utils";
 
 export function SessionsSection() {
-  const [sessions, setSessions] = useState<MockSession[]>(MOCK_SESSIONS);
+  const { data: sessions = [], isLoading, isError } = useQuery(sessionsQuery);
+  const revokeSession = useRevokeSession();
+  const revokeOtherSessions = useRevokeOtherSessions();
 
   return (
     <div>
@@ -44,11 +51,41 @@ export function SessionsSection() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="px-3.5 py-8 text-center text-sm text-muted-foreground"
+                >
+                  Loading sessions...
+                </TableCell>
+              </TableRow>
+            ) : null}
+            {isError ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="px-3.5 py-8 text-center text-sm text-muted-foreground"
+                >
+                  Unable to load sessions. Please try again.
+                </TableCell>
+              </TableRow>
+            ) : null}
+            {!isLoading && !isError && sessions.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="px-3.5 py-8 text-center text-sm text-muted-foreground"
+                >
+                  No active sessions found.
+                </TableCell>
+              </TableRow>
+            ) : null}
             {sessions.map((session) => (
               <TableRow key={session.id}>
                 <TableCell className="px-3.5 py-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{session.device}</span>
+                    <span className="font-medium">{session.user_agent}</span>
                     {session.current ? (
                       <Badge
                         variant="outline"
@@ -63,14 +100,20 @@ export function SessionsSection() {
                   {session.ip}
                 </TableCell>
                 <TableCell className="px-3.5 py-3 text-[13px] text-muted-foreground">
-                  {session.createdAt}
+                  {formatMemberSince(session.created_at)}
                 </TableCell>
                 <TableCell className="px-3.5 py-3 text-[13px] text-muted-foreground">
-                  {session.expiresAt}
+                  {formatMemberSince(session.expires_at)}
                 </TableCell>
                 <TableCell className="px-3.5 py-3 text-right">
                   {!session.current ? (
-                    <Button variant="destructive">Revoke</Button>
+                    <Button
+                      variant="destructive"
+                      disabled={revokeSession.isPending}
+                      onClick={() => revokeSession.mutate(session.id)}
+                    >
+                      Revoke
+                    </Button>
                   ) : null}
                 </TableCell>
               </TableRow>
@@ -79,11 +122,23 @@ export function SessionsSection() {
         </Table>
       </div>
 
-      {sessions.length <= 1 ? (
+      {sessions.length <= 1 && !isLoading && !isError ? (
         <p className="mt-3 text-sm text-muted-foreground">
           No other sessions. Only this browser is signed in.
         </p>
-      ) : null}
+      ) : (
+        <div className="mt-3 flex justify-end">
+          <Button
+            variant="outline"
+            disabled={revokeOtherSessions.isPending}
+            onClick={() => revokeOtherSessions.mutate()}
+          >
+            {revokeOtherSessions.isPending
+              ? "Signing out..."
+              : "Sign out other sessions"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
