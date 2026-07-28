@@ -15,6 +15,7 @@ import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as DeviceRouteRouteImport } from './routes/device/route'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as WorkspacesRouteRouteImport } from './routes/workspaces/route'
+import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppMembersRouteImport } from './routes/_app/members'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AuthCheckEmailRouteImport } from './routes/auth/check-email'
@@ -60,6 +61,11 @@ const WorkspacesRouteRoute = WorkspacesRouteRouteImport.update({
   id: '/workspaces',
   path: '/workspaces',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppAuditRoute = AppAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppMembersRoute = AppMembersRouteImport.update({
   id: '/members',
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/device': typeof DeviceRouteRouteWithChildren
   '/workspaces': typeof WorkspacesRouteRouteWithChildren
   '/onboarding': typeof OnboardingRoute
+  '/audit': typeof AppAuditRoute
   '/members': typeof AppMembersRoute
   '/settings': typeof AppSettingsRoute
   '/auth/check-email': typeof AuthCheckEmailRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRouteRouteWithChildren
   '/workspaces': typeof WorkspacesRouteRouteWithChildren
   '/onboarding': typeof OnboardingRoute
+  '/audit': typeof AppAuditRoute
   '/members': typeof AppMembersRoute
   '/settings': typeof AppSettingsRoute
   '/auth/check-email': typeof AuthCheckEmailRoute
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/workspaces': typeof WorkspacesRouteRouteWithChildren
   '/_app': typeof AppRouteWithChildren
   '/onboarding': typeof OnboardingRoute
+  '/_app/audit': typeof AppAuditRoute
   '/_app/members': typeof AppMembersRoute
   '/_app/settings': typeof AppSettingsRoute
   '/auth/check-email': typeof AuthCheckEmailRoute
@@ -220,6 +229,7 @@ export interface FileRouteTypes {
     | '/device'
     | '/workspaces'
     | '/onboarding'
+    | '/audit'
     | '/members'
     | '/settings'
     | '/auth/check-email'
@@ -242,6 +252,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/workspaces'
     | '/onboarding'
+    | '/audit'
     | '/members'
     | '/settings'
     | '/auth/check-email'
@@ -266,6 +277,7 @@ export interface FileRouteTypes {
     | '/workspaces'
     | '/_app'
     | '/onboarding'
+    | '/_app/audit'
     | '/_app/members'
     | '/_app/settings'
     | '/auth/check-email'
@@ -336,6 +348,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/workspaces'
       preLoaderRoute: typeof WorkspacesRouteRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_app/audit': {
+      id: '/_app/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
     }
     '/_app/members': {
       id: '/_app/members'
@@ -507,6 +526,7 @@ const WorkspacesRouteRouteWithChildren = WorkspacesRouteRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppAuditRoute: typeof AppAuditRoute
   AppMembersRoute: typeof AppMembersRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppVaultsVaultIdRoute: typeof AppVaultsVaultIdRoute
@@ -514,6 +534,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAuditRoute: AppAuditRoute,
   AppMembersRoute: AppMembersRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppVaultsVaultIdRoute: AppVaultsVaultIdRoute,
