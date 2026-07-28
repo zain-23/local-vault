@@ -8,7 +8,6 @@ export type ModalType =
   | "remove-member"
   | "cancel-invite";
 
-
 type ModalArgs = {
   type: ModalType;
   props?: Record<string, unknown>;

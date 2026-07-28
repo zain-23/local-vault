@@ -10,13 +10,12 @@ import (
 )
 
 type Handler struct {
-	svc 	*Service
+	svc *Service
 }
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
-
 
 // Create — POST /api/v1/workspaces/:wid/vaults
 func (h *Handler) Create(c *fiber.Ctx) error {
@@ -27,14 +26,13 @@ func (h *Handler) Create(c *fiber.Ctx) error {
 	if msg := validate.Struct(req); msg != "" {
 		return apperror.New(400, msg)
 	}
-	user := middleware.GetUser(c) // creator (usr_) from the JWT
+	user := middleware.GetUser(c)
 	res, err := h.svc.Create(c.UserContext(), c.Params("wid"), user.ID, req)
 	if err != nil {
 		return err
 	}
 	return response.Success(c, res, fiber.StatusCreated, "vault created")
 }
-
 
 // List — GET /api/v1/workspaces/:wid/vaults
 func (h *Handler) List(c *fiber.Ctx) error {
@@ -79,7 +77,6 @@ func (h *Handler) PushSnapshot(c *fiber.Ctx) error {
 }
 
 // PullSnapshot — GET /api/v1/workspaces/:wid/vaults/:id/snapshot
-// The P2P device id comes from the X-Device-ID header (preserved from the old relay).
 func (h *Handler) PullSnapshot(c *fiber.Ctx) error {
 	res, err := h.svc.PullSnapshot(c.UserContext(), c.Params("wid"), c.Params("id"), c.Get("X-Device-ID"))
 	if err != nil {
@@ -129,7 +126,58 @@ func (h *Handler) RemovePeer(c *fiber.Ctx) error {
 	return response.Success(c, nil, fiber.StatusOK, "peer removed")
 }
 
-// Join — POST /api/v1/join (public; the token is the credential).
+// InviteCollaborator — POST .../vaults/:id/collaborators
+func (h *Handler) InviteCollaborator(c *fiber.Ctx) error {
+	var req InviteCollaboratorRequest
+	if err := c.BodyParser(&req); err != nil {
+		return apperror.ErrInvalidBody
+	}
+	if msg := validate.Struct(req); msg != "" {
+		return apperror.New(400, msg)
+	}
+	user := middleware.GetUser(c)
+	res, err := h.svc.InviteCollaborator(c.UserContext(), c.Params("wid"), c.Params("id"), user.ID, req)
+	if err != nil {
+		return err
+	}
+	return response.Success(c, res, fiber.StatusCreated, "collaborator invited")
+}
+
+// ListCollaborators — GET .../vaults/:id/collaborators
+func (h *Handler) ListCollaborators(c *fiber.Ctx) error {
+	res, err := h.svc.ListCollaborators(c.UserContext(), c.Params("wid"), c.Params("id"))
+	if err != nil {
+		return err
+	}
+	return response.Success(c, res, fiber.StatusOK, "collaborators retrieved")
+}
+
+// RevokeCollaborator — DELETE .../vaults/:id/collaborators/:cid
+func (h *Handler) RevokeCollaborator(c *fiber.Ctx) error {
+	if err := h.svc.RevokeCollaborator(c.UserContext(), c.Params("wid"), c.Params("id"), c.Params("cid")); err != nil {
+		return err
+	}
+	return response.Success(c, nil, fiber.StatusOK, "invite revoked")
+}
+
+// JoinByCode — POST /api/v1/join-code
+func (h *Handler) JoinByCode(c *fiber.Ctx) error {
+	var req JoinByCodeRequest
+	if err := c.BodyParser(&req); err != nil {
+		return apperror.ErrInvalidBody
+	}
+	if msg := validate.Struct(req); msg != "" {
+		return apperror.New(400, msg)
+	}
+	user := middleware.GetUser(c)
+	res, err := h.svc.JoinByCode(c.UserContext(), user.ID, user.Email, req)
+	if err != nil {
+		return err
+	}
+	return response.Success(c, res, fiber.StatusOK, "joined vault")
+}
+
+// Join — POST /api/v1/join (legacy token join).
 func (h *Handler) Join(c *fiber.Ctx) error {
 	var req JoinRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -138,7 +186,8 @@ func (h *Handler) Join(c *fiber.Ctx) error {
 	if msg := validate.Struct(req); msg != "" {
 		return apperror.New(400, msg)
 	}
-	res, err := h.svc.Join(c.UserContext(), req)
+	user := middleware.GetUser(c)
+	res, err := h.svc.Join(c.UserContext(), req, user.ID)
 	if err != nil {
 		return err
 	}

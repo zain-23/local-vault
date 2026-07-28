@@ -31,6 +31,8 @@ interface DataTableProps<TData, TValue> {
   isLoading?: boolean;
   // When set (and not loading), replaces the empty/data body with this message.
   errorMessage?: string;
+  // Optional row click (e.g. navigate to detail). Keyboard: Enter/Space on row.
+  onRowClick?: (row: TData) => void;
 }
 
 // Generic, reusable table: owns TanStack sorting + column-filter state and renders
@@ -42,6 +44,7 @@ export function DataTable<TData, TValue>({
   emptyMessage = "No results.",
   isLoading = false,
   errorMessage,
+  onRowClick,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -108,6 +111,21 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className={onRowClick ? "cursor-pointer" : undefined}
+                  tabIndex={onRowClick ? 0 : undefined}
+                  onClick={
+                    onRowClick ? () => onRowClick(row.original) : undefined
+                  }
+                  onKeyDown={
+                    onRowClick
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onRowClick(row.original);
+                          }
+                        }
+                      : undefined
+                  }
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

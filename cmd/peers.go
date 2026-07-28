@@ -1,53 +1,95 @@
 package cmd
 
-// peers.go handles "lv peers"
-// Shows all trusted peers this vault is connected to
-// Useful for debugging invite/sync issues
-
 import (
-	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
+
+	"github.com/zain-23/local-vault/internal/api"
+	"github.com/zain-23/local-vault/internal/ui"
 )
 
 var peersCmd = &cobra.Command{
 	Use:   "peers",
-	Short: "List all trusted peers",
+	Short: "List vault peers (devices with access)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dir, err := os.Getwd()
 		if err != nil {
 			return err
 		}
+		lvDir := filepath.Join(dir, ".lv")
 
-		// Use session key — no passphrase needed
+		if cfg, err := requireLinkedConfig(lvDir); err == nil {
+			if client, err := requireAPI(); err == nil {
+				detail, err := client.GetVault(cfg.WorkspaceID, cfg.VaultID)
+				if err != nil {
+					return mapNotLoggedIn(err)
+				}
+				return printServerPeers(detail.Peers, cfg.DeviceID)
+			}
+		}
+
 		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}
-
 		peers := v.GetPeers()
-
 		if len(peers) == 0 {
-			fmt.Println("No trusted peers yet.")
-			fmt.Println("Share an invite: lv invite")
+			ui.Info("no trusted peers yet")
+			ui.Hint("invite a teammate: lv invite teammate@company.com")
 			return nil
 		}
 
-		fmt.Println("👥 Trusted Peers")
-		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-
-		for i, peer := range peers {
-			fmt.Printf("\n  Peer %d\n", i+1)
-			fmt.Printf("  Name      : %s\n", peer.DeviceName)
-			fmt.Printf("  Device ID : %s\n", peer.DeviceID)
-			fmt.Printf("  Added     : %s\n",
-				peer.AddedAt.Format("2006-01-02 15:04:05"))
+		rows := make([][]string, 0, len(peers))
+		for _, peer := range peers {
+			rows = append(rows, []string{
+				peer.DeviceName,
+				"—",
+				"—",
+				shortID(peer.DeviceID),
+				peer.AddedAt.Format("2006-01-02"),
+			})
 		}
-
-		fmt.Printf("\n%d peer(s) total\n", len(peers))
+		ui.Header("Trusted Peers (local)")
+		ui.Table([]string{"DEVICE", "NAME", "EMAIL", "ID", "ADDED"}, rows)
+		ui.Info("%d peer(s) total", len(peers))
+		ui.Hint("run lv login && lv sync to refresh from server")
 		return nil
 	},
+}
+
+func printServerPeers(peers []api.Peer, selfDeviceID string) error {
+	if len(peers) == 0 {
+		ui.Info("no peers on this vault yet")
+		ui.Hint("invite a teammate: lv invite teammate@company.com")
+		return nil
+	}
+
+	rows := make([][]string, 0, len(peers))
+	for _, p := range peers {
+		name := p.Name
+		if name == "" {
+			name = "—"
+		}
+		email := p.Email
+		if email == "" {
+			email = "—"
+		}
+		device := p.DeviceName
+		if p.DeviceID == selfDeviceID {
+			device = device + " (you)"
+		}
+		joined := "—"
+		if !p.JoinedAt.IsZero() {
+			joined = p.JoinedAt.Format("2006-01-02")
+		}
+		rows = append(rows, []string{device, name, email, shortID(p.DeviceID), joined})
+	}
+	ui.Header("Vault Peers")
+	ui.Table([]string{"DEVICE", "NAME", "EMAIL", "ID", "JOINED"}, rows)
+	ui.Info("%d peer(s) total", len(peers))
+	return nil
 }
 
 func init() {

@@ -1,46 +1,60 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"syscall"
 
 	"github.com/spf13/cobra"
-	"github.com/zain-23/local-vault/internal/client"
+
+	"github.com/zain-23/local-vault/internal/api"
 	"github.com/zain-23/local-vault/internal/config"
 	"github.com/zain-23/local-vault/internal/identity"
 	"github.com/zain-23/local-vault/internal/session"
+	"github.com/zain-23/local-vault/internal/ui"
 	"github.com/zain-23/local-vault/internal/vault"
-	"golang.org/x/term"
+)
+
+var (
+	initWorkspace string
+	initName      string
 )
 
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize a new vault in the current directory",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("🔐 Initializing LocalVault...")
+		ui.Title("Initializing vault")
 
-		// Ask passphrase
-		fmt.Print("Enter passphrase: ")
-		passphraseBytes, err := term.ReadPassword(int(syscall.Stdin))
-		fmt.Println()
+		client, err := requireAPI()
 		if err != nil {
-			return fmt.Errorf("failed to read passphrase: %w", err)
+			return err
+		}
+		if _, err := client.Me(); err != nil {
+			return mapNotLoggedIn(err)
 		}
 
-		fmt.Print("Confirm passphrase: ")
-		confirmBytes, err := term.ReadPassword(int(syscall.Stdin))
-		fmt.Println()
+		list, err := client.ListWorkspaces()
 		if err != nil {
-			return fmt.Errorf("failed to read passphrase: %w", err)
+			return mapNotLoggedIn(err)
+		}
+		workspaceID, err := resolveWorkspaceID(initWorkspace, list, stdinLine)
+		if err != nil {
+			return err
 		}
 
-		if string(passphraseBytes) != string(confirmBytes) {
+		passphrase, err := ui.Passphrase("Enter passphrase")
+		if err != nil {
+			return err
+		}
+		confirm, err := ui.Passphrase("Confirm passphrase")
+		if err != nil {
+			return err
+		}
+		if passphrase != confirm {
 			return fmt.Errorf("passphrases do not match")
 		}
-
-		passphrase := string(passphraseBytes)
 		if len(passphrase) < 8 {
 			return fmt.Errorf("passphrase must be at least 8 characters")
 		}
@@ -49,75 +63,64 @@ var initCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
 		lvDir := filepath.Join(dir, ".lv")
 
-		// Initialize vault on disk
+		name := initName
+		if name == "" {
+			name = filepath.Base(dir)
+		}
+
 		if err := vault.Init(dir, passphrase); err != nil {
 			return err
 		}
 
-		// Load identity
 		id, err := identity.Load(lvDir)
 		if err != nil {
 			return err
 		}
 
-		// Load config
+		ui.Step("registering vault on server...")
+		resp, err := client.CreateVault(workspaceID, api.CreateVaultRequest{
+			Name:            name,
+			OwnerDeviceID:   id.DeviceID,
+			OwnerName:       id.DeviceName,
+			PublicKey:       id.PublicKey,
+			X25519PublicKey: id.X25519PublicKey,
+		})
+		if err != nil {
+			if mapped := mapNotLoggedIn(err); errors.Is(mapped, api.ErrNotLoggedIn) {
+				return mapped
+			}
+			return fmt.Errorf("server registration failed: %w\n  fix login/network, then remove .lv and re-run: lv init", err)
+		}
+
 		cfg, err := config.Load(lvDir)
 		if err != nil {
 			return err
 		}
-
-		// Register vault on signaling server
-		fmt.Println("🌐 Registering vault on server...")
-		sc := client.New(cfg.SignalingServer, id.DeviceID)
-
-		if err := sc.HealthCheck(); err != nil {
-			fmt.Println("⚠️  Could not reach server — working offline")
-			fmt.Println("   Run: lv push when online to register")
-		} else {
-			resp, err := sc.RegisterVault(client.RegisterVaultRequest{
-				OwnerID:         id.DeviceID,
-				OwnerName:       id.DeviceName,
-				PublicKey:       id.PublicKey,
-				X25519PublicKey: id.X25519PublicKey,
-			})
-
-			if err != nil {
-				fmt.Printf("⚠️  Server registration failed: %v\n", err)
-			} else {
-				// Save vault ID to config
-				cfg.VaultID = resp.VaultID
-				cfg.DeviceID = id.DeviceID
-				config.Save(lvDir, cfg)
-
-				fmt.Printf("✅ Registered — Vault ID: %s\n", resp.VaultID)
-			}
+		cfg.WorkspaceID = workspaceID
+		cfg.VaultID = resp.VaultID
+		cfg.DeviceID = id.DeviceID
+		if err := config.Save(lvDir, cfg); err != nil {
+			return err
 		}
 
-		// Auto unlock after init
-		v, err := vault.Load(dir, passphrase)
-		if err == nil {
+		if v, err := vault.Load(dir, passphrase); err == nil {
 			if err := session.Save(lvDir, v.GetKey()); err == nil {
-				fmt.Println("🔓 Auto-unlocked for 12 hours")
+				ui.Success("auto-unlocked for 12 hours")
 			}
 		}
 
-		fmt.Println("✅ Vault initialized successfully")
-		fmt.Println("📁 Created .lv/ directory")
-		fmt.Println("🔒 Vault encrypted with your passphrase")
-		fmt.Println("📝 Updated .gitignore")
-		fmt.Println()
-		fmt.Println("Next steps:")
-		fmt.Println("  lv add DATABASE_URL=postgres://...")
-		fmt.Println("  lv push")
-		fmt.Println("  lv invite --name \"Ahmed\"")
-
+		ui.Success("vault initialized — %s", resp.VaultID)
+		ui.Hint("lv add DATABASE_URL=postgres://...")
+		ui.Hint("lv push")
+		ui.Hint("lv invite teammate@company.com")
 		return nil
 	},
 }
 
 func init() {
+	initCmd.Flags().StringVar(&initWorkspace, "workspace", "", "workspace id (skips picker)")
+	initCmd.Flags().StringVar(&initName, "name", "", "vault name (default: directory name)")
 	rootCmd.AddCommand(initCmd)
 }

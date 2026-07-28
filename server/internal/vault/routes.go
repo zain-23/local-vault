@@ -9,24 +9,33 @@ import (
 func RegisterRoutes(app *fiber.App, h *Handler, ws middleware.MembershipChecker, authMW fiber.Handler) {
 	v := app.Group("/api/v1/workspaces/:wid/vaults", authMW)
 
-	// Any member (owner/admin/member) can read, create vaults/tokens, and sync.
 	member := middleware.RequireRole(ws, "wid", RoleOwner, RoleAdmin, RoleMember)
+	admin := middleware.RequireRole(ws, "wid", RoleOwner, RoleAdmin)
+
 	v.Post("/", member, h.Create)
 	v.Get("/", member, h.List)
 	v.Get("/:id", member, h.Get)
 	v.Put("/:id/snapshot", member, h.PushSnapshot)
 	v.Get("/:id/snapshot", member, h.PullSnapshot)
-	v.Post("/:id/tokens", member, h.CreateToken)
-	v.Get("/:id/tokens", member, h.ListTokens)
-	v.Delete("/:id/tokens/:tid", member, h.RevokeToken)
 
-	// Destructive: owner or admin only.
-	admin := middleware.RequireRole(ws, "wid", RoleOwner, RoleAdmin)
+	// Legacy join tokens: owner/admin only.
+	v.Post("/:id/tokens", admin, h.CreateToken)
+	v.Get("/:id/tokens", admin, h.ListTokens)
+	v.Delete("/:id/tokens/:tid", admin, h.RevokeToken)
+
+	// Email short-code invites.
+	v.Post("/:id/collaborators", admin, h.InviteCollaborator)
+	v.Get("/:id/collaborators", admin, h.ListCollaborators)
+	v.Delete("/:id/collaborators/:cid", admin, h.RevokeCollaborator)
+
 	v.Delete("/:id", admin, h.Delete)
 	v.Delete("/:id/peers/:did", admin, h.RemovePeer)
 
-	// --- top-level ---
-	app.Post("/api/v1/join", h.Join) // public
+	// Short-code join (auth required).
+	app.Post("/api/v1/join-code", authMW, h.JoinByCode)
+
+	// Legacy token join (auth required).
+	app.Post("/api/v1/join", authMW, h.Join)
 
 	msg := app.Group("/api/v1/messages", authMW)
 	msg.Post("/", h.SendMessage)

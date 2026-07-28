@@ -32,6 +32,10 @@ var registry = map[EmailKind]emailTemplate{
 		subject: "You've been invited to a LocalVault workspace",
 		file: "invite.html",
 	},
+	KindVaultCollaboratorInvite: {
+		subject: "You've been invited to a LocalVault vault",
+		file: "vault_collaborator_invite.html",
+	},
 }
 
 // Renderer holds one parsed template set per kind (base.html + that kind's content).

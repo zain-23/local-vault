@@ -11,15 +11,17 @@ import (
 )
 
 type Store struct {
-	vaults		*mongo.Collection
-	messages 	*mongo.Collection
+	vaults         *mongo.Collection
+	messages       *mongo.Collection
+	collaborators  *mongo.Collection
 }
 
 // NewStore create the store and its indexes
 func NewStore(db *mongo.Database) *Store {
 	s := &Store{
-		vaults:		db.Collection("vaults"),
-		messages: 	db.Collection("pending_messages"),
+		vaults:        db.Collection("vaults"),
+		messages:      db.Collection("pending_messages"),
+		collaborators: db.Collection("vault_collaborators"),
 	}
 
 	ctx := context.TODO()
@@ -43,8 +45,18 @@ func NewStore(db *mongo.Database) *Store {
 		Keys: bson.D{{Key: "for_device_id", Value: 1}},
 	})
 
+	s.collaborators.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{{Key: "vault_id", Value: 1}, {Key: "status", Value: 1}},
+	})
+	s.collaborators.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{{Key: "vault_id", Value: 1}, {Key: "email", Value: 1}},
+	})
+	s.collaborators.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys:    bson.D{{Key: "code_hash", Value: 1}},
+		Options: options.Index().SetUnique(true).SetSparse(true),
+	})
+
 	return s
-	
 }
 
 
@@ -161,6 +173,82 @@ func (s *Store) RevokeToken(ctx context.Context, vaultID, tokenID string) (bool,
 		return false, err
 	}
 	return res.MatchedCount == 1, nil
+}
+
+// ---------------- Collaborators ----------------
+
+func (s *Store) CreateCollaborator(ctx context.Context, c *Collaborator) error {
+	_, err := s.collaborators.InsertOne(ctx, c)
+	return err
+}
+
+func (s *Store) FindCollaboratorByID(ctx context.Context, id string) (*Collaborator, error) {
+	var c Collaborator
+	err := s.collaborators.FindOne(ctx, bson.M{"_id": id}).Decode(&c)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func (s *Store) FindCollaboratorByCodeHash(ctx context.Context, codeHash string) (*Collaborator, error) {
+	var c Collaborator
+	err := s.collaborators.FindOne(ctx, bson.M{"code_hash": codeHash}).Decode(&c)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+// FindOpenCollaborator returns a pending invite for vault+email.
+func (s *Store) FindOpenCollaborator(ctx context.Context, vaultID, email string) (*Collaborator, error) {
+	var c Collaborator
+	err := s.collaborators.FindOne(ctx, bson.M{
+		"vault_id": vaultID,
+		"email":    email,
+		"status":   CollabPending,
+	}).Decode(&c)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func (s *Store) ListCollaboratorsByVault(ctx context.Context, vaultID string) ([]Collaborator, error) {
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	cur, err := s.collaborators.Find(ctx, bson.M{
+		"vault_id": vaultID,
+		"status":   bson.M{"$ne": CollabRevoked},
+	}, opts)
+	if err != nil {
+		return nil, err
+	}
+	var out []Collaborator
+	if err := cur.All(ctx, &out); err != nil {
+		return nil, err
+	}
+	if out == nil {
+		out = []Collaborator{}
+	}
+	return out, nil
+}
+
+func (s *Store) UpdateCollaborator(ctx context.Context, id string, set bson.M) error {
+	if set == nil {
+		set = bson.M{}
+	}
+	set["updated_at"] = time.Now()
+	_, err := s.collaborators.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": set})
+	return err
 }
 
 // ---------------- Offline messages ----------------

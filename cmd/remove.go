@@ -1,15 +1,10 @@
 package cmd
 
-// remove.go handles "lv remove KEY"
-// Deletes a secret from the vault permanently
-
 import (
-	"bufio"
-	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/zain-23/local-vault/internal/ui"
 )
 
 var removeCmd = &cobra.Command{
@@ -18,25 +13,16 @@ var removeCmd = &cobra.Command{
 	Example: `  lv remove DATABASE_URL
   lv remove STRIPE_KEY --env production`,
 	Args: cobra.ExactArgs(1),
-
 	RunE: func(cmd *cobra.Command, args []string) error {
 		key := args[0]
-
 		force, _ := cmd.Flags().GetBool("force")
-
-		// Confirm before deleting — destructive action
 		if !force {
-			fmt.Printf("⚠️  Are you sure you want to remove %s? (y/N): ", key)
-
-			reader := bufio.NewReader(os.Stdin)
-			response, err := reader.ReadString('\n')
+			ok, err := ui.Confirm("remove " + key + "?")
 			if err != nil {
 				return err
 			}
-
-			response = strings.TrimSpace(strings.ToLower(response))
-			if response != "y" && response != "yes" {
-				fmt.Println("Cancelled.")
+			if !ok {
+				ui.Info("cancelled")
 				return nil
 			}
 		}
@@ -45,13 +31,10 @@ var removeCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-
-		// Use session key — no passphrase needed
 		v, err := loadVault(dir)
 		if err != nil {
 			return err
 		}
-
 		if err := v.Remove(key, envFlag); err != nil {
 			return err
 		}
@@ -60,9 +43,8 @@ var removeCmd = &cobra.Command{
 		if env == "" {
 			env = "all environments"
 		}
-
-		fmt.Printf("✅ Removed %s (%s)\n", key, env)
-		fmt.Println("💡 Run: lv push   to sync with peers")
+		ui.Success("removed %s (%s)", key, env)
+		ui.Hint("run: lv push   to sync with peers")
 		return nil
 	},
 }
