@@ -14,15 +14,18 @@ import {
   deviceCodeSchema,
   toUserCodeParam,
 } from "../schemas/index.ts";
-import { DeviceCard } from "./DeviceCard.tsx";
+import { useDeviceCodeStore } from "../stores/useDeviceCodeStore.ts";
+import { FocusedCard } from "#/components/shared";
 import { DeviceCodeInput } from "./DeviceCodeInput.tsx";
 
 // Step one of the browser flow (not in the original mockup): the user types the
 // code their terminal printed, and we hand off to the approval screen. No
 // network call happens here — the code is only checked for shape; the server
-// validates it when the approval screen loads.
+// validates it when the approval screen loads. The code is stashed in a store
+// rather than the URL, so a refresh drops it and the flow restarts cleanly.
 function SubmitCodeForm({ defaultCode = "" }: { defaultCode?: string }) {
   const navigate = useNavigate();
+  const setUserCode = useDeviceCodeStore((s) => s.setUserCode);
   const {
     control,
     handleSubmit,
@@ -32,15 +35,13 @@ function SubmitCodeForm({ defaultCode = "" }: { defaultCode?: string }) {
     defaultValues: { code: defaultCode },
   });
 
-  const onSubmit = handleSubmit(({ code }) =>
-    navigate({
-      to: "/device/confirmation",
-      search: { user_code: toUserCodeParam(code) },
-    }),
-  );
+  const onSubmit = handleSubmit(({ code }) => {
+    setUserCode(toUserCodeParam(code));
+    navigate({ to: "/device/confirmation" });
+  });
 
   return (
-    <DeviceCard
+    <FocusedCard
       icon={Terminal}
       title="Enter the code from your terminal"
       subtitle={
@@ -69,7 +70,7 @@ function SubmitCodeForm({ defaultCode = "" }: { defaultCode?: string }) {
             <FieldError className="text-center" errors={[errors.code]} />
           </Field>
 
-          <Button type="submit" size="lg" className="w-full">
+          <Button type="submit" className="w-full">
             Continue
           </Button>
         </FieldGroup>
@@ -78,7 +79,7 @@ function SubmitCodeForm({ defaultCode = "" }: { defaultCode?: string }) {
       <p className="mt-5 text-center text-xs text-muted-foreground">
         Didn't start this? You can safely close this page.
       </p>
-    </DeviceCard>
+    </FocusedCard>
   );
 }
 

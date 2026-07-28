@@ -17,7 +17,6 @@ function GoogleButton({
     <Button
       type="button"
       variant="secondary"
-      size="lg"
       className="w-full"
       onClick={onClick}
       {...props}

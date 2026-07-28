@@ -3,8 +3,8 @@ import type * as React from "react";
 import { LVLogo } from "#/components/shared/LVLogo.tsx";
 import { Stepper } from "./Stepper.tsx";
 
-// Shared shell for every onboarding step: grid backdrop, centered logo, and a
-// card that renders the Stepper once so the steps only supply their own body.
+const FOOTER_LINKS = ["Privacy", "Terms", "Security"] as const;
+
 function OnboardingLayout({
   step,
   children,
@@ -13,29 +13,51 @@ function OnboardingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-svh items-center justify-center overflow-hidden bg-background px-6 py-10 text-foreground">
-      {/* grid motif, masked to a soft radial fade behind the card */}
+    <div className="relative flex min-h-svh flex-col overflow-hidden bg-background text-foreground">
+      {/* Grid backdrop, matched to the device + auth screens so the flows feel
+          of a piece. Masked to a soft glow anchored top-left. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-70 bg-[linear-gradient(var(--color-border-strong)_1px,transparent_1px),linear-gradient(90deg,var(--color-border-strong)_1px,transparent_1px)] bg-size-[24px_24px]"
+        className="pointer-events-none absolute inset-0 opacity-60 bg-[linear-gradient(var(--color-border)_1px,transparent_1px),linear-gradient(90deg,var(--color-border)_1px,transparent_1px)] bg-size-[24px_24px]"
         style={{
           maskImage:
-            "radial-gradient(ellipse at center, black 0%, transparent 70%)",
+            "radial-gradient(ellipse at 25% 15%, black 0%, transparent 72%)",
           WebkitMaskImage:
-            "radial-gradient(ellipse at center, black 0%, transparent 70%)",
+            "radial-gradient(ellipse at 25% 15%, black 0%, transparent 72%)",
         }}
       />
 
-      <div className="relative w-full max-w-xl">
-        <div className="mb-6 flex justify-center">
-          <LVLogo size={40} />
-        </div>
+      <header className="relative flex items-center justify-between px-6 py-5 sm:px-10">
+        <LVLogo size={35} />
+        <button
+          type="button"
+          className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+        >
+          Need help?
+        </button>
+      </header>
 
-        <div className="rounded-xl border border-border bg-card p-7">
-          <Stepper current={step} />
-          {children}
+      <main className="relative flex flex-1 items-center justify-center px-6 py-10">
+        <div className="w-full max-w-xl">
+          <div className="rounded-xl border border-border bg-card p-7">
+            <Stepper current={step} />
+            {children}
+          </div>
         </div>
-      </div>
+      </main>
+
+      <footer className="relative flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-6 py-6 text-[11.5px] text-muted-foreground">
+        <span className="font-mono">© 2026 LocalVault</span>
+        {FOOTER_LINKS.map((label) => (
+          <button
+            key={label}
+            type="button"
+            className="transition-colors hover:text-foreground"
+          >
+            {label}
+          </button>
+        ))}
+      </footer>
     </div>
   );
 }

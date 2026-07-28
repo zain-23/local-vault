@@ -1,27 +1,24 @@
 import { create } from "zustand";
 
+import type { MemberRole } from "#/features/members/types";
+
 // The currently active workspace. The member API is workspace-scoped
 // (/workspaces/:wid/members), so this id is what feature hooks will read to
-// build their requests. The sidebar's WorkspaceSwitcher sets it.
+// build their requests. `role` is the caller's membership in this workspace
+// (from GET /workspaces) — used to gate invite UI.
 export interface Workspace {
-	id: string;
-	name: string;
-	plan: string;
+  id: string;
+  name: string;
+  plan: string;
+  role: MemberRole | null;
 }
 
 interface WorkspaceState {
-	active: Workspace | null;
-	setActive: (workspace: Workspace) => void;
+  active: Workspace | null;
+  setActive: (workspace: Workspace) => void;
 }
 
-// Seed with a placeholder until real workspaces are wired (onboarding creates one).
-const PLACEHOLDER_WORKSPACE: Workspace = {
-	id: "ws_placeholder",
-	name: "Kodexo Labs",
-	plan: "Free",
-};
-
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
-	active: PLACEHOLDER_WORKSPACE,
-	setActive: (workspace) => set({ active: workspace }),
+  active: null,
+  setActive: (workspace) => set({ active: workspace }),
 }));

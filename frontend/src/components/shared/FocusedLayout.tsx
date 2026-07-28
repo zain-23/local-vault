@@ -1,10 +1,12 @@
 import type * as React from "react";
 
-import { LVLogo } from "#/components/shared/LVLogo.tsx";
+import { LVLogo } from "#/components/shared";
 
 const FOOTER_LINKS = ["Privacy", "Terms", "Security"] as const;
 
-function DeviceLayout({ children }: { children: React.ReactNode }) {
+// Centered page chrome for focused flows outside the app shell (CLI device
+// link, workspace invite accept, etc.): logo header, grid backdrop, footer.
+function FocusedLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative flex min-h-svh flex-col bg-background text-foreground">
       {/* Grid backdrop, matched to the auth brand panel so the flow feels of a
@@ -50,4 +52,4 @@ function DeviceLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export { DeviceLayout };
+export { FocusedLayout };

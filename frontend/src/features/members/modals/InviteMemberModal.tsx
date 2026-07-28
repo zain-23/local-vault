@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { toast } from "sonner";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
+
 import {
   Button,
   DialogContent,
@@ -8,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   Field,
+  FieldError,
   FieldLabel,
   Input,
   Select,
@@ -16,22 +18,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from "#/components/ui";
-import { ASSIGNABLE_ROLES } from "#/features/members/types";
+import { useInviteMember } from "#/features/members/hooks";
+import {
+  type InviteMemberValues,
+  inviteMemberSchema,
+} from "#/features/members/schemas";
+import { ASSIGNABLE_ROLES } from "#/features/members/utils";
 import { useModalStore } from "#/stores/useModalStore";
 
-// Invite modal — fields mirror the server's InviteRequest: email + role only.
-// (No "message" field; the API doesn't accept one.)
 export function InviteMemberModal() {
   const closeModal = useModalStore((s) => s.closeModal);
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<(typeof ASSIGNABLE_ROLES)[number]>("member");
+  const invite = useInviteMember();
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<InviteMemberValues>({
+    resolver: zodResolver(inviteMemberSchema),
+    defaultValues: { email: "", role: "member" },
+  });
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    // TODO: wire to POST /workspaces/:wid/members/invite. Mock for now.
-    toast.success(`Invite sent to ${email}`);
-    closeModal();
-  }
+  const onSubmit = handleSubmit((values) => {
+    invite.mutate(values, {
+      onSuccess: () => closeModal(),
+    });
+  });
 
   return (
     <DialogContent>
@@ -44,49 +56,65 @@ export function InviteMemberModal() {
 
       <form
         id="invite-member-form"
-        onSubmit={handleSubmit}
+        onSubmit={onSubmit}
+        noValidate
         className="grid gap-4"
       >
-        <Field>
+        <Field data-invalid={!!errors.email}>
           <FieldLabel htmlFor="invite-email">Email address</FieldLabel>
           <Input
             id="invite-email"
             type="email"
-            required
             autoFocus
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
             placeholder="name@company.com"
+            aria-invalid={!!errors.email}
+            {...register("email")}
           />
+          <FieldError errors={[errors.email]} />
         </Field>
 
-        <Field>
+        <Field data-invalid={!!errors.role}>
           <FieldLabel htmlFor="invite-role">Role</FieldLabel>
-          <Select
-            value={role}
-            onValueChange={(v) =>
-              setRole(v as (typeof ASSIGNABLE_ROLES)[number])
-            }
-          >
-            <SelectTrigger id="invite-role" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ASSIGNABLE_ROLES.map((r) => (
-                <SelectItem key={r} value={r} className="capitalize">
-                  {r}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Controller
+            control={control}
+            name="role"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger
+                  id="invite-role"
+                  className="w-full"
+                  aria-invalid={!!errors.role}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ASSIGNABLE_ROLES.map((r) => (
+                    <SelectItem key={r} value={r} className="capitalize">
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+          <FieldError errors={[errors.role]} />
         </Field>
       </form>
 
       <DialogFooter>
-        <Button variant="outline" onClick={closeModal}>
+        <Button
+          variant="outline"
+          onClick={closeModal}
+          disabled={invite.isPending}
+        >
           Cancel
         </Button>
-        <Button type="submit" form="invite-member-form" disabled={!email}>
+        <Button
+          type="submit"
+          form="invite-member-form"
+          isLoading={invite.isPending}
+        >
           Send invite
         </Button>
       </DialogFooter>

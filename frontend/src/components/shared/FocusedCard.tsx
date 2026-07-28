@@ -1,10 +1,9 @@
 import type { LucideIcon } from "lucide-react";
 import type * as React from "react";
 
-// The card every device screen shares: a tinted icon badge, a title, an optional
-// subtitle, then the screen's body. Keeps the submit and approval steps visually
-// identical apart from their contents.
-function DeviceCard({
+// Card shell for focused flows (CLI device link, workspace invite, etc.):
+// optional centered icon/title, or a custom header, then the screen body.
+function FocusedCard({
   icon: Icon,
   title,
   subtitle,
@@ -14,7 +13,7 @@ function DeviceCard({
   icon?: LucideIcon;
   title?: React.ReactNode;
   subtitle?: React.ReactNode;
-  // Optional custom header (used by the approval screen's side-by-side layout).
+  // Optional custom header (e.g. side-by-side icon + title).
   header?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -44,4 +43,4 @@ function DeviceCard({
   );
 }
 
-export { DeviceCard };
+export { FocusedCard };

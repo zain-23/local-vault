@@ -1,48 +1,57 @@
-import { toast } from "sonner";
 import {
-	Button,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
+  Button,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "#/components/ui";
+import { useRemoveMember } from "#/features/members/hooks";
 import type { Member } from "#/features/members/types";
 import { useModalStore } from "#/stores/useModalStore";
 
-// Destructive confirm — maps to DELETE /workspaces/:wid/members/:userId.
+// Destructive confirm — DELETE /workspaces/:wid/members/:userId.
 export function RemoveMemberModal() {
-	const { props, closeModal } = useModalStore();
-	const member = props.member as Member | undefined;
+  const { props, closeModal } = useModalStore();
+  const member = props.member as Member | undefined;
+  const remove = useRemoveMember();
 
-	if (!member) return null;
+  if (!member) return null;
 
-	function handleRemove() {
-		// TODO: wire to the real endpoint. Mock for now.
-		toast.success(`${member?.name} was removed`);
-		closeModal();
-	}
+  function handleRemove() {
+    remove.mutate(member!.user_id, {
+      onSuccess: () => closeModal(),
+    });
+  }
 
-	return (
-		<DialogContent>
-			<DialogHeader>
-				<DialogTitle>Remove member</DialogTitle>
-				<DialogDescription>
-					Remove{" "}
-					<span className="font-medium text-foreground">{member.name}</span>{" "}
-					from this workspace? They'll lose access immediately. This can't be
-					undone.
-				</DialogDescription>
-			</DialogHeader>
+  return (
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Remove member</DialogTitle>
+        <DialogDescription>
+          Remove{" "}
+          <span className="font-medium text-foreground">{member.name}</span>{" "}
+          from this workspace? They'll lose access immediately. This can't be
+          undone.
+        </DialogDescription>
+      </DialogHeader>
 
-			<DialogFooter>
-				<Button variant="outline" onClick={closeModal}>
-					Cancel
-				</Button>
-				<Button variant="destructive" onClick={handleRemove}>
-					Remove member
-				</Button>
-			</DialogFooter>
-		</DialogContent>
-	);
+      <DialogFooter>
+        <Button
+          variant="outline"
+          onClick={closeModal}
+          disabled={remove.isPending}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="destructive"
+          onClick={handleRemove}
+          isLoading={remove.isPending}
+        >
+          Remove member
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
 }

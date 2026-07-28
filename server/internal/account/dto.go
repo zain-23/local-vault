@@ -9,13 +9,18 @@ type ProfileResponse struct {
 	Name             string    `json:"name"`
 	AvatarURL        string    `json:"avatar_url,omitempty"`
 	TwoFactorEnabled bool      `json:"two_factor_enabled"`
+	Onboarded        bool      `json:"onboarded"`
 	CreatedAt        time.Time `json:"created_at"`
 }
 
-// UpdateProfileRequest — PUT /account/me. Both optional; empty means "leave unchanged".
+// UpdateProfileRequest — PUT /account/me. All optional; a nil/empty field means
+// "leave unchanged". Onboarded is a pointer so an explicit false is distinct
+// from "not sent" — the onboarding flow sets it true, and a name/avatar edit
+// must never reset it just because the flag was omitted.
 type UpdateProfileRequest struct {
 	Name      string `json:"name" validate:"omitempty,min=2,max=50"`
 	AvatarURL string `json:"avatar_url" validate:"omitempty,url"`
+	Onboarded *bool  `json:"onboarded"`
 }
 
 // ChangePasswordRequest — PUT /account/password.

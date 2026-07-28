@@ -1,11 +1,12 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/charmbracelet/lipgloss" // terminal styling
 	"github.com/spf13/cobra"            // CLI framework
+
+	"github.com/zain-23/local-vault/internal/ui"
 )
 
 // This is the style for our banner text
@@ -28,7 +29,7 @@ var rootCmd = &cobra.Command{
 // If any command fails, it prints the error and exits
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		ui.Error("%s", err)
 		os.Exit(1)
 	}
 }

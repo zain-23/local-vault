@@ -33,7 +33,7 @@ function CheckEmailPanel({
     <>
       <AuthHeading title="Check your inbox" subtitle={subtitle} />
 
-      <Button type="button" size="lg" className="w-full">
+      <Button type="button" className="w-full">
         <RefreshCw />
         Resend email
       </Button>

@@ -1,18 +1,10 @@
-import { CheckCircle2, Terminal } from "lucide-react";
-import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { Loader2, Terminal } from "lucide-react";
 
 import { Button, ErrorMessage, SuccessMessage } from "#/components/ui";
-import { cn } from "../../../lib/utils.ts";
-import { DeviceCard } from "./DeviceCard.tsx";
-
-// UI only — no backend yet. Static request stands in for the API; Approve / Deny
-// just switch the local view. Wire these to the device endpoints when the
-// backend integration lands. A device links to the whole account now — the
-// workspace it acts in is chosen later in the CLI, not here.
-const MOCK_REQUEST = {
-  deviceName: "ahmed-mbp",
-  ip: "203.0.113.42",
-};
+import { ApiError } from "#/services/api";
+import { useApprovalDetails, useDecideDevice } from "#/features/device/hooks";
+import { FocusedCard } from "#/components/shared";
 
 // One key/value line inside the device summary panel.
 function DetailRow({
@@ -30,56 +22,129 @@ function DetailRow({
   );
 }
 
-function ApprovalScreen() {
-  const [outcome, setOutcome] = useState<"approved" | "denied" | null>(null);
-
+function Header() {
   return (
-    <DeviceCard
-      header={
-        <div className="mb-5 flex items-start gap-3.5">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-foreground">
-            <Terminal className="size-5" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-[17px] font-semibold tracking-[-0.01em]">
-              Authorize CLI device
-            </h1>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
-              A new terminal wants to link to your account.
-            </p>
-          </div>
+    <div className="mb-5 flex items-start gap-3.5">
+      <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-foreground">
+        <Terminal className="size-5" />
+      </div>
+      <div className="min-w-0">
+        <h1 className="text-[17px] font-semibold tracking-[-0.01em]">
+          Authorize CLI device
+        </h1>
+        <p className="mt-0.5 text-[13px] text-muted-foreground">
+          A new terminal wants to link to your account.
+        </p>
+      </div>
+    </div>
+  );
+}
+// A device links to the whole account here — the workspace it acts in is chosen
+// later in the CLI, not on this screen. The route guarantees the user is signed
+// in before we get here, so a 401 isn't a case we render.
+function ApprovalScreen({ userCode }: { userCode?: string }) {
+  const { data, isPending, error } = useApprovalDetails(userCode);
+  const decide = useDecideDevice(userCode ?? "");
+
+  // No code in the store — the page was refreshed or opened directly. The code
+  // is never in the URL, so there's nothing to recover; send them back to
+  // re-enter the one from their terminal.
+  if (!userCode) {
+    return (
+      <FocusedCard header={<Header />}>
+        <ErrorMessage title="No device code — enter the code from your terminal again." />
+        <Button asChild variant="outline" className="mt-5 w-full">
+          <Link to="/device">Enter code</Link>
+        </Button>
+      </FocusedCard>
+    );
+  }
+
+  if (isPending) {
+    return (
+      <FocusedCard header={<Header />}>
+        <div className="flex items-center justify-center gap-2 py-6 text-[13px] text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+          Loading request…
         </div>
-      }
-    >
+      </FocusedCard>
+    );
+  }
+
+  if (error) {
+    // 404 = unknown or expired code; anything else, show the server's words.
+    const notFound = error instanceof ApiError && error.status === 404;
+    return (
+      <FocusedCard header={<Header />}>
+        <ErrorMessage
+          title={
+            notFound ? "This code is invalid or has expired." : error.message
+          }
+        />
+      </FocusedCard>
+    );
+  }
+
+  // The decision made this session (undefined until the user acts).
+  const decided = decide.isSuccess ? decide.variables : undefined;
+  const approved = decided === "approve" || data.status === "approved";
+  const denied = decided === "deny" || data.status === "denied";
+  const expired = data.status === "expired";
+  const settled = approved || denied || expired;
+
+  console.log({ decided, approved, denied, expired, settled });
+  return (
+    <FocusedCard header={<Header />}>
       <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-muted/40 px-4 py-3.5">
         <DetailRow label="Device name">
-          <span className="font-mono">{MOCK_REQUEST.deviceName}</span>
+          <span className="font-mono">{data.device_name}</span>
         </DetailRow>
         <DetailRow label="IP address">
-          <span className="font-mono">{MOCK_REQUEST.ip}</span>
+          <span className="font-mono">{data.ip}</span>
         </DetailRow>
       </div>
 
-      <div className={cn("mt-6 flex gap-3", outcome !== null && "hidden")}>
-        <Button
-          variant="outline"
-          className="flex-1"
-          onClick={() => setOutcome("denied")}
-        >
-          Deny
-        </Button>
-        <Button
-          className="flex-1"
-          icon={CheckCircle2}
-          onClick={() => setOutcome("approved")}
-        >
-          Approve
-        </Button>
-      </div>
+      {!settled && (
+        <>
+          <div className="mt-6 flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={decide.isPending}
+              onClick={() => decide.mutate("deny")}
+            >
+              Deny
+            </Button>
+            <Button
+              className="flex-1"
+              isLoading={decide.isPending}
+              onClick={() => decide.mutate("approve")}
+            >
+              Approve
+            </Button>
+          </div>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            Only approve if you started this from your own terminal.
+          </p>
+        </>
+      )}
 
-      {outcome === "approved" && <SuccessMessage title="Device linked" />}
-      {outcome === "denied" && <ErrorMessage title="Request denied" />}
-    </DeviceCard>
+      {approved && (
+        <div className="mt-6">
+          <SuccessMessage title="Device linked — you can return to your terminal." />
+        </div>
+      )}
+      {denied && (
+        <div className="mt-6">
+          <ErrorMessage title="Request denied." />
+        </div>
+      )}
+      {expired && !approved && !denied && (
+        <div className="mt-6">
+          <ErrorMessage title="This request has expired." />
+        </div>
+      )}
+    </FocusedCard>
   );
 }
 
