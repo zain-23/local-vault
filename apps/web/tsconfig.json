@@ -1,0 +1,10 @@
+{
+  "include": ["**/*.ts", "**/*.tsx"],
+  "extends": "@local-vault/typescript-config/react.json",
+  "compilerOptions": {
+    "paths": {
+      "#/*": ["./src/*"],
+      "@/*": ["./src/*"]
+    }
+  }
+}

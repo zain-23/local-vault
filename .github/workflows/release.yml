@@ -1,12 +1,14 @@
 name: release
 
+# Production:  tag v1.2.3       (from main)     → stable release, prod SERVER_URL
+# Development: tag v1.2.3-dev.1 (from develop)  → GitHub prerelease, dev SERVER_URL
 on:
   push:
     tags:
       - "v*"
 
 permissions:
-  contents: write   # required for GoReleaser to create the GitHub Release
+  contents: write
 
 jobs:
   goreleaser:
@@ -14,7 +16,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # GoReleaser needs full history for the changelog
+          fetch-depth: 0
+
+      - name: Resolve environment
+        id: env
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          # Semver with a hyphen suffix (v1.2.3-dev.1, v1.2.3-rc.1) → develop
+          if [[ "$TAG" == *-* ]]; then
+            echo "channel=develop" >> "$GITHUB_OUTPUT"
+            echo "server_url=${{ vars.SERVER_URL_DEVELOPMENT || 'https://local-vault-dev.onrender.com' }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "channel=production" >> "$GITHUB_OUTPUT"
+            echo "server_url=${{ vars.SERVER_URL_PRODUCTION || vars.SERVER_URL || 'https://local-vault-1.onrender.com' }}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Releasing $TAG as channel=$([[ "$TAG" == *-* ]] && echo develop || echo production)"
 
       - uses: actions/setup-go@v5
         with:
@@ -26,7 +42,4 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # The CLI's default server URL, injected into the binary at build
-          # time. Override per-repo by setting a "SERVER_URL" repository
-          # variable (Settings → Secrets and variables → Actions → Variables).
-          SERVER_URL: ${{ vars.SERVER_URL || 'https://local-vault-1.onrender.com' }}
+          SERVER_URL: ${{ steps.env.outputs.server_url }}
