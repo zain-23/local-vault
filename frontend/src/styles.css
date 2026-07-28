@@ -1,0 +1,197 @@
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+@plugin '@tailwindcss/typography';
+
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --sea-ink: #173a40;
+  --sea-ink-soft: #416166;
+  --lagoon: #4fb8b2;
+  --lagoon-deep: #328f97;
+  --palm: #2f6a4a;
+  --sand: #e7f0e8;
+  --foam: #f3faf5;
+  --surface: rgba(255, 255, 255, 0.74);
+  --surface-strong: rgba(255, 255, 255, 0.9);
+  --line: rgba(23, 58, 64, 0.14);
+  --inset-glint: rgba(255, 255, 255, 0.82);
+  --kicker: rgba(47, 106, 74, 0.9);
+  --bg-base: #e7f3ec;
+  --header-bg: rgba(251, 255, 248, 0.84);
+  --chip-bg: rgba(255, 255, 255, 0.8);
+  --chip-line: rgba(47, 106, 74, 0.18);
+  --link-bg-hover: rgba(255, 255, 255, 0.9);
+  --hero-a: rgba(79, 184, 178, 0.36);
+  --hero-b: rgba(47, 106, 74, 0.2);
+
+  /* LocalVault — light (warm gold accent, Vercel-flavored neutrals) */
+  --background: #ffffff;
+  --foreground: #0c0c0c;
+  --card: #ffffff;
+  --card-foreground: #0c0c0c;
+  --popover: #ffffff;
+  --popover-foreground: #0c0c0c;
+  --primary: #9a6a1e;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f1f1;
+  --secondary-foreground: #0c0c0c;
+  --muted: #fafafa;
+  --muted-foreground: #6c6c6c;
+  --accent: #f1f1f1;
+  --accent-foreground: #0c0c0c;
+  --destructive: #b23a26;
+  --destructive-foreground: #ffffff;
+  --border: #e7e7e7;
+  --border-strong: #d4d4d4;
+  --input: #e7e7e7;
+  --ring: #9a6a1e;
+
+  /* LocalVault brand extras (gold soft fill, status colors) */
+  --accent-soft: rgba(154, 106, 30, 0.1);
+  --accent-border: rgba(154, 106, 30, 0.38);
+  --success: #2e7d4f;
+  --warning: #9a6a1e;
+
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --radius: 0.5rem;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #0c0c0c;
+  --sidebar-primary: #9a6a1e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f1f1;
+  --sidebar-accent-foreground: #0c0c0c;
+  --sidebar-border: #e7e7e7;
+  --sidebar-ring: #9a6a1e;
+}
+
+.dark {
+  --sea-ink: #d7ece8;
+  --sea-ink-soft: #afcdc8;
+  --lagoon: #60d7cf;
+  --lagoon-deep: #8de5db;
+  --palm: #6ec89a;
+  --sand: #0f1a1e;
+  --foam: #101d22;
+  --surface: rgba(16, 30, 34, 0.8);
+  --surface-strong: rgba(15, 27, 31, 0.92);
+  --line: rgba(141, 229, 219, 0.18);
+  --inset-glint: rgba(194, 247, 238, 0.14);
+  --kicker: #b8efe5;
+  --bg-base: #0a1418;
+  --header-bg: rgba(10, 20, 24, 0.8);
+  --chip-bg: rgba(13, 28, 32, 0.9);
+  --chip-line: rgba(141, 229, 219, 0.24);
+  --link-bg-hover: rgba(24, 44, 49, 0.8);
+  --hero-a: rgba(96, 215, 207, 0.18);
+  --hero-b: rgba(110, 200, 154, 0.12);
+
+  /* LocalVault — dark (true-black surfaces, warm gold accent) */
+  --background: #000000;
+  --foreground: #f4f4f4;
+  --card: #0a0a0a;
+  --card-foreground: #f4f4f4;
+  --popover: #0a0a0a;
+  --popover-foreground: #f4f4f4;
+  --primary: #e5b567;
+  --primary-foreground: #1a1408;
+  --secondary: #171717;
+  --secondary-foreground: #f4f4f4;
+  --muted: #0a0a0a;
+  --muted-foreground: #8c8c8c;
+  --accent: #171717;
+  --accent-foreground: #f4f4f4;
+  --destructive: #e0715c;
+  --destructive-foreground: #1a1408;
+  --border: #1d1d1d;
+  --border-strong: #2c2c2c;
+  --input: #1d1d1d;
+  --ring: #e5b567;
+
+  --accent-soft: rgba(229, 181, 103, 0.12);
+  --accent-border: rgba(229, 181, 103, 0.42);
+  --success: #7bc894;
+  --warning: #e5a93c;
+
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #f4f4f4;
+  --sidebar-primary: #e5b567;
+  --sidebar-primary-foreground: #1a1408;
+  --sidebar-accent: #171717;
+  --sidebar-accent-foreground: #f4f4f4;
+  --sidebar-border: #1d1d1d;
+  --sidebar-ring: #e5b567;
+}
+
+@theme inline {
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-border: var(--accent-border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+}

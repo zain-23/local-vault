@@ -1,0 +1,20 @@
+{{define "content"}}
+<p style="color: #333333">Hi {{.Name}},</p>
+<p style="color: #333333">
+  Confirm your email address to finish setting up your LocalVault account.
+</p>
+<p>
+  <a
+    href="{{.URL}}"
+    style="
+      display: inline-block;
+      background: #111111;
+      color: #ffffff;
+      padding: 12px 20px;
+      border-radius: 6px;
+      text-decoration: none;
+    "
+    >Verify email</a
+  >
+</p>
+{{end}}
