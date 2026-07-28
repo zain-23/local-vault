@@ -28,6 +28,10 @@ var registry = map[EmailKind]emailTemplate{
 		subject: "Reset your LocalVault password",
 		file: "password_reset.html",
 	},
+	KindWorkspaceInvite: {
+		subject: "You've been invited to a LocalVault workspace",
+		file: "invite.html",
+	},
 }
 
 // Renderer holds one parsed template set per kind (base.html + that kind's content).

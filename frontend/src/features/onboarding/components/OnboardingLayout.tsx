@@ -26,7 +26,7 @@ function OnboardingLayout({
         }}
       />
 
-      <div className="relative w-full max-w-[480px]">
+      <div className="relative w-full max-w-xl">
         <div className="mb-6 flex justify-center">
           <LVLogo size={40} />
         </div>

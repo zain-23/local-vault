@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -136,7 +135,7 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 		return err
 	}
 	setAccessCookie(c, h.cfg, resp.AccessToken)
-	return response.Success(c, resp, fiber.StatusOK, "token refreshed")
+	return response.Success(c, "", fiber.StatusOK, "token refreshed")
 }
 
 // Logout handles POST /api/v1/auth/logout
@@ -158,7 +157,6 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 func (h *Handler) VerifyEmail(c *fiber.Ctx) error {
 	// Token comes from the query string, not the body — it's a value from the email link
 	token := c.Query("token")
-	fmt.Println(token)
 	if token == "" {
 		return apperror.New(fiber.StatusBadRequest, "verification token is missing")
 	}

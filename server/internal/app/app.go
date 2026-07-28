@@ -12,12 +12,17 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
+	"github.com/zain-23/local-vault/server/internal/account"
+	"github.com/zain-23/local-vault/server/internal/audit"
 	"github.com/zain-23/local-vault/server/internal/auth"
 	"github.com/zain-23/local-vault/server/internal/common/apperror"
 	"github.com/zain-23/local-vault/server/internal/common/jwt"
 	"github.com/zain-23/local-vault/server/internal/common/middleware"
 	"github.com/zain-23/local-vault/server/internal/config"
+	"github.com/zain-23/local-vault/server/internal/device"
 	"github.com/zain-23/local-vault/server/internal/email"
+	"github.com/zain-23/local-vault/server/internal/member"
+	"github.com/zain-23/local-vault/server/internal/vault"
 	"github.com/zain-23/local-vault/server/internal/workspace"
 )
 
@@ -100,8 +105,10 @@ func New(cfg config.Config) (*App, error) {
 	})
 
 	// ------------ Wire Auth domain ----------
-	// Create shared services first
+	// Create shared services first + authMW
 	jwtService := jwt.NewService(cfg.JWTSecret, cfg.JWTAccessExpiry)
+	authMW := middleware.Auth(jwtService)
+
 	// Create auth domain: store -> service -> handler
 	authStore := auth.NewStore(db)
 	authService := auth.NewService(authStore, jwtService, publisher, cfg)
@@ -109,16 +116,56 @@ func New(cfg config.Config) (*App, error) {
 	// OAuth
 	oauthHandler := auth.NewOAuthHandler(authService, cfg)
 	// Register all auth routes on the fiber app
-	auth.RegisterRoutes(app, authHandler, oauthHandler)
+	auth.RegisterRoutes(app, authHandler, oauthHandler, authMW)
+	
+
+	// ------------ Audit (built first — every domain records through it) ----------
+	auditStore := audit.NewStore(db)
+	auditService := audit.NewService(auditStore)
 
 
 	// ------------ Wire Workspace domain ----------
-	authMW := middleware.Auth(jwtService)
 	// workspace domain: store -> service -> handler
 	wsStore := workspace.NewStore(db)
-	wsService := workspace.NewService(wsStore)
+	wsService := workspace.NewService(wsStore, auditService)
 	wsHandler := workspace.NewHandler(wsService)
 	workspace.RegisterRoutes(app, wsHandler, wsStore, authMW)
+
+	// ------------ Wire Member domain ----------
+	memberStore := member.NewStore(db)
+	memberService := member.NewService(memberStore, publisher, cfg, auditService)
+	memberHandler := member.NewHandler(memberService)
+	// store is passed too — RequireRole uses it to look up the caller's role.
+	member.RegisterRoutes(app, memberHandler, memberStore, authMW)
+
+
+	// ------------ Wire Device domain ----------
+	// Depends on authService (mints the CLI's session — one source of truth for
+	// tokens) and memberStore (verifies the approver belongs to the workspace).
+	deviceStore := device.NewStore(db)
+	deviceService := device.NewService(deviceStore, authService, cfg)
+	deviceHandler := device.NewHandler(deviceService)
+	device.RegisterRoutes(app, deviceHandler, authMW)
+
+
+	// ------------ Wire Vault domain ----------
+	// Reuses wsStore as the RequireRole membership checker (RoleOf).
+	vaultStore := vault.NewStore(db)
+	vaultService := vault.NewService(vaultStore, auditService)
+	vaultHandler := vault.NewHandler(vaultService)
+	vault.RegisterRoutes(app, vaultHandler, wsStore, authMW)
+	
+	// ------------ Wire Audit domain (read side) ----------
+	auditHandler := audit.NewHandler(auditService)
+	audit.RegisterRoutes(app, auditHandler, wsStore, authMW)
+	
+	
+	// ------------ Wire Account domain ----------
+	// Own store over the shared users/sessions collections; records account events.
+	accountStore := account.NewStore(db)
+	accountService := account.NewService(accountStore, auditService)
+	accountHandler := account.NewHandler(accountService)
+	account.RegisterRoutes(app, accountHandler, authMW)
 
 	return &App{Fiber: app, DB: db, Publisher: publisher, JWTService: jwtService}, nil
 }

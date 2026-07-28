@@ -226,3 +226,9 @@ func (s *Store) MarkMagicLinkUsed(ctx context.Context, id string) error {
 	_, err := s.magicLinks.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{"used": true}})
 	return err
 }
+
+// DeleteSessionsByDeviceID removes all sessions for one device — used on device revoke.
+func (s *Store) DeleteSessionsByDeviceID(ctx context.Context, deviceID string) error {
+	_, err := s.sessions.DeleteMany(ctx, bson.M{"device_id": deviceID})
+	return err
+}

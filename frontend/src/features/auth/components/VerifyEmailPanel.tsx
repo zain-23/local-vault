@@ -19,7 +19,7 @@ function VerifyEmailPanel({
   email?: string;
   token?: string;
 }) {
-  const { mutate, isPending, isSuccess, isError, error } = useVerifyEmail();
+  const { mutate, isPending, isSuccess, isError } = useVerifyEmail();
 
   // Arrived from the email link — verify the token once on mount.
   useEffect(() => {
@@ -46,26 +46,13 @@ function VerifyEmailPanel({
         {isSuccess && (
           <SuccessMessage
             title="Email verified"
-            description="Your account is active. Redirecting you to log in…"
-          >
-            <Button className="w-full" asChild>
-              <Link to="/auth/login">Continue to log in</Link>
-            </Button>
-          </SuccessMessage>
+          />
         )}
 
         {isError && (
           <ErrorMessage
             title="Verification failed"
-            description={
-              error?.message ??
-              "That link is invalid or has expired. Request a new one below."
-            }
-          >
-            <Button asChild className="w-full">
-              <Link to="/auth/signup">Back to sign up</Link>
-            </Button>
-          </ErrorMessage>
+          />
         )}
       </>
     );

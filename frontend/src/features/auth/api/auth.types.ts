@@ -6,6 +6,7 @@ export interface User {
 	avatar_url?: string;
 	email_verified: boolean;
 	two_factor_enabled: boolean;
+	onboarded: boolean;
 	created_at: string;
 	updated_at: string;
 }

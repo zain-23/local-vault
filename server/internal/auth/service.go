@@ -12,11 +12,12 @@ import (
 	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
-	"golang.org/x/crypto/argon2"
 
 	"github.com/zain-23/local-vault/server/internal/common/apperror"
 	"github.com/zain-23/local-vault/server/internal/common/id"
 	"github.com/zain-23/local-vault/server/internal/common/jwt"
+	"github.com/zain-23/local-vault/server/internal/common/password"
+	"github.com/zain-23/local-vault/server/internal/common/totp"
 	"github.com/zain-23/local-vault/server/internal/config"
 	"github.com/zain-23/local-vault/server/internal/email"
 )
@@ -49,60 +50,13 @@ func NewService(store *Store, jwtSvc *jwt.Service, pub *email.Publisher, cfg con
 
 
 // HashPassword converts plain password to safe hash
-func hashPassword(password string) (string, error) {
-	salt := make([]byte, argonSaltLen)
-	if _, err := rand.Read(salt); err != nil {
-		return "", err
-	}
-
-	// argon2.IDKey does the actual hashing - CPU + memory intensive by design
-	hash := argon2.IDKey([]byte(password), salt, argonTime, argonMemory, argonThreads, argonKeyLen)
-
-	// Encode as text for storage - includes params so we can verify if we change setting later
-	b64Salt := base64.RawStdEncoding.EncodeToString(salt)
-	b64Hash := base64.RawStdEncoding.EncodeToString(hash)
-
-	return fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s", 
-			argon2.Version, argonMemory, argonTime, argonThreads, b64Salt, b64Hash), nil
+func hashPassword(pw string) (string, error) {
+	return password.Hash(pw)
 }
 
 // verifyPassword re-hashes with same salth and compares - returns true if password matches
-func verifyPassword(password, encode string) bool {
-	parts := strings.Split(encode, "$")
-
-	if len(parts) != 6 {
-		return  false
-	}
-
-	var memory uint32
-	var iteration uint32
-	var threads uint8
-	fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &memory, &iteration, &threads)
-
-	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
-	if err != nil {
-		return  false
-	}
-
-	expectedHash, err := base64.RawStdEncoding.DecodeString(parts[5])
-	if err != nil {
-		return  false
-	}
-	// Re-hash with same params + salt — should produce identical result
-	computed := argon2.IDKey([]byte(password), salt, iteration, memory, threads, uint32(len(expectedHash)))
-	
-
-	// Constand-time compare - prevents timing attacks that measure comparison speed
-	if len(computed) != len(expectedHash) {
-		return  false
-	}
-	
-	for i := range computed {
-		if computed[i] != expectedHash[i] {
-			return false
-		}
-	}
-	return true
+func verifyPassword(pw, encode string) bool {
+	return password.Verify(pw, encode)
 }
 
 // generateRandomToken create URL-safe random string - used for email links
@@ -125,7 +79,9 @@ func sha256Hash(s string) string {
 
 // createSessionAndTokens generates tokens + store session
 func (s *Service) createSessionAndTokens(ctx context.Context, user *User, deviceID, ip, userAgent string) (*LoginResponse, error) {
-	accessToken, err := s.jwt.GenerateAccessToken(user.ID, user.Email, deviceID)
+	sessionID := id.Generate("ses_", 12)
+
+	accessToken, err := s.jwt.GenerateAccessToken(user.ID, user.Email, deviceID, sessionID)
 	if err != nil {
 		return  nil, apperror.ErrInternal
 	}
@@ -136,21 +92,46 @@ func (s *Service) createSessionAndTokens(ctx context.Context, user *User, device
 	}
 
 	now := time.Now()
-	s.Store.CreateSession(ctx, &Session{
-		ID: id.Generate("ses_", 12),
+	if err := s.Store.CreateSession(ctx, &Session{
+		ID: sessionID,
 		IP: ip,
 		UserAgent: userAgent,
 		UserID: user.ID,
+		DeviceID: deviceID,
 		RefreshTokenHash: sha256Hash(refreshToken),
 		CreatedAt: now,
 		ExpiresAt: now.Add(s.cfg.JWTRefreshExpiry),
-	})
+	}); err != nil {
+		return nil, apperror.ErrInternal
+	}
 
 	return &LoginResponse{
 		AccessToken: accessToken,
 		RefreshToken: refreshToken,
 		User: *user,
 	}, nil
+}
+
+// IssueSession mints an access+refresh pair for an already-verified user.
+// The device domain calls this after a user approves a CLI login — there is no
+// password check here, because approval in an authenticated browser IS the proof.
+// Exported wrapper so session creation lives in exactly one place.
+func (s *Service) IssueSession(ctx context.Context, userID, deviceID, ip, userAgent string) (*LoginResponse, error) {
+	user, err := s.Store.FindUserByID(ctx, userID)
+	if err != nil {
+		return nil, apperror.ErrInternal
+	}
+	if user == nil {
+		return nil, apperror.New(401, "user not found")
+	}
+	return s.createSessionAndTokens(ctx, user, deviceID, ip, userAgent)
+}
+
+// RevokeDeviceSessions deletes every session belonging to a device.
+// Called when a device is removed, so revocation is immediate rather than
+// waiting up to 15 minutes for the access token to expire.
+func (s *Service) RevokeDeviceSessions(ctx context.Context, deviceID string) error {
+	return s.Store.DeleteSessionsByDeviceID(ctx, deviceID)
 }
 
 // verifyTOTP — placeholder until Account domain adds 2FA setup
@@ -182,9 +163,11 @@ func (s *Service) Signup(ctx context.Context, req SignupRequest) (string, error)
 		Name: 			req.Name,
 		PasswordHash: 	passwordHash,
 		EmailVerified: 	false,
+		Onboarded: 		false,
 		CreatedAt: 		now,
 		UpdatedAt: 		now,	
 	}
+
 	if err := s.Store.CreateUser(ctx, user); err != nil {
 		return "", apperror.ErrInternal
 	}
@@ -194,7 +177,6 @@ func (s *Service) Signup(ctx context.Context, req SignupRequest) (string, error)
 	if err != nil {
 		return  "", apperror.ErrInternal
 	}
-	fmt.Println(token)
 	s.Store.CreateEmailVerification(ctx, &EmailVerification{
 		ID: 		id.Generate("evr_", 12),
 		UserID: 	user.ID,
@@ -276,7 +258,7 @@ func (s *Service) Login2FA(ctx context.Context, req Login2FARequest, ip, userAge
 	}
 
 	// verify TOTP - placeholder until Account domain implements 2FA setup
-	if !verifyTOTP(user.TwoFactorSecret, req.TOTPCode) {
+	if !totp.Validate(user.TwoFactorSecret, req.TOTPCode) {
 		return nil, apperror.New(401, "invalid 2FA code")
 	}
 
@@ -297,12 +279,13 @@ func (s *Service) RefreshToken(ctx context.Context, req RefreshRequest) (*Refres
 		return nil, apperror.New(401, "user not found")
 	}
 
-	accessToken, err := s.jwt.GenerateAccessToken(user.ID, user.Email, "")
+	accessToken, err := s.jwt.GenerateAccessToken(user.ID, user.Email, session.DeviceID, session.ID)
 	if err != nil {
 		return nil, apperror.ErrInternal
 	}
 	return &RefreshResponse{AccessToken: accessToken}, nil
 }
+
 
 // ------------------------ Logout -----------------
 func (s *Service) Logout(ctx context.Context, refreshToken string) error {
@@ -312,7 +295,6 @@ func (s *Service) Logout(ctx context.Context, refreshToken string) error {
 
 // ---------------------- Email verification ------------------
 func (s *Service) VerifyEmail(ctx context.Context, token string) error {
-	fmt.Println(sha256Hash(token))
 	ev, err := s.Store.FindEmailVerificationByHash(ctx, sha256Hash(token))
 	if err != nil {
 		return apperror.ErrInternal

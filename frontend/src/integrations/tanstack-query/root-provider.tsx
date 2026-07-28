@@ -1,29 +1,37 @@
 import {
+  MutationCache,
   QueryClient,
-  type QueryClientConfig,
   QueryClientProvider,
 } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
-// App-wide React Query defaults.
-const queryConfig: QueryClientConfig = {
-  defaultOptions: {
-    queries: {
-      staleTime: 60_000, // 1 min — data is "fresh" this long, no refetch on mount
-      gcTime: 5 * 60_000, // keep unused cache 5 min before garbage-collecting
-      retry: 1, // retry a failed query once
-      refetchOnWindowFocus: false, // don't refetch every time the tab refocuses
-    },
-    mutations: {
-      retry: 0, // never auto-retry mutations — they have side effects
-    },
-  },
-};
-
-// A fresh client per request (getContext runs in getRouter) so server-rendered
-// cache never leaks between users.
 export function getContext() {
-  const queryClient = new QueryClient(queryConfig);
+  const queryClient: QueryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60_000,
+        gcTime: 5 * 60_000,
+        retry: 1,
+        refetchOnWindowFocus: false,
+      },
+      mutations: {
+        retry: 0,
+      },
+    },
+    mutationCache: new MutationCache({
+      onSuccess: (_data, _var, _ctx, mutation) => {
+        const keys = mutation.meta?.invalidates;
+        if (!keys) return;
+        // Only marks stale. Queries hydrated from SSR carry no queryFn, and the
+        // ones read by route guards have no observers to borrow one from, so a
+        // refetch here would reject with "Missing queryFn" and be swallowed.
+        // Anything needing fresh data before navigating must fetchQuery itself.
+        return Promise.all(
+          keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+        );
+      },
+    }),
+  });
 
   return {
     queryClient,

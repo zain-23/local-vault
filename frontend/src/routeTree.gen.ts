@@ -10,8 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as DeviceRouteRouteImport } from './routes/device/route'
 import { Route as AuthRouteRouteImport } from './routes/auth/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DeviceIndexRouteImport } from './routes/device/index'
+import { Route as DeviceConfirmationRouteImport } from './routes/device/confirmation'
 import { Route as AuthVerifyEmailRouteImport } from './routes/auth/verify-email'
 import { Route as AuthTwoFactorRouteImport } from './routes/auth/two-factor'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
@@ -21,10 +25,20 @@ import { Route as AuthMagicLinkRouteImport } from './routes/auth/magic-link'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
 import { Route as AuthCheckEmailRouteImport } from './routes/auth/check-email'
+import { Route as AppMembersRouteImport } from './routes/_app/members'
 
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeviceRouteRoute = DeviceRouteRouteImport.update({
+  id: '/device',
+  path: '/device',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRouteRoute = AuthRouteRouteImport.update({
@@ -36,6 +50,16 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DeviceIndexRoute = DeviceIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DeviceRouteRoute,
+} as any)
+const DeviceConfirmationRoute = DeviceConfirmationRouteImport.update({
+  id: '/confirmation',
+  path: '/confirmation',
+  getParentRoute: () => DeviceRouteRoute,
 } as any)
 const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
   id: '/verify-email',
@@ -82,11 +106,18 @@ const AuthCheckEmailRoute = AuthCheckEmailRouteImport.update({
   path: '/check-email',
   getParentRoute: () => AuthRouteRoute,
 } as any)
+const AppMembersRoute = AppMembersRouteImport.update({
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
+  '/device': typeof DeviceRouteRouteWithChildren
   '/onboarding': typeof OnboardingRoute
+  '/members': typeof AppMembersRoute
   '/auth/check-email': typeof AuthCheckEmailRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
@@ -96,11 +127,14 @@ export interface FileRoutesByFullPath {
   '/auth/signup': typeof AuthSignupRoute
   '/auth/two-factor': typeof AuthTwoFactorRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
+  '/device/confirmation': typeof DeviceConfirmationRoute
+  '/device/': typeof DeviceIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
   '/onboarding': typeof OnboardingRoute
+  '/members': typeof AppMembersRoute
   '/auth/check-email': typeof AuthCheckEmailRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
@@ -110,12 +144,17 @@ export interface FileRoutesByTo {
   '/auth/signup': typeof AuthSignupRoute
   '/auth/two-factor': typeof AuthTwoFactorRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
+  '/device/confirmation': typeof DeviceConfirmationRoute
+  '/device': typeof DeviceIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth': typeof AuthRouteRouteWithChildren
+  '/device': typeof DeviceRouteRouteWithChildren
+  '/_app': typeof AppRouteWithChildren
   '/onboarding': typeof OnboardingRoute
+  '/_app/members': typeof AppMembersRoute
   '/auth/check-email': typeof AuthCheckEmailRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
@@ -125,13 +164,17 @@ export interface FileRoutesById {
   '/auth/signup': typeof AuthSignupRoute
   '/auth/two-factor': typeof AuthTwoFactorRoute
   '/auth/verify-email': typeof AuthVerifyEmailRoute
+  '/device/confirmation': typeof DeviceConfirmationRoute
+  '/device/': typeof DeviceIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/auth'
+    | '/device'
     | '/onboarding'
+    | '/members'
     | '/auth/check-email'
     | '/auth/forgot-password'
     | '/auth/login'
@@ -141,11 +184,14 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/auth/two-factor'
     | '/auth/verify-email'
+    | '/device/confirmation'
+    | '/device/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
     | '/onboarding'
+    | '/members'
     | '/auth/check-email'
     | '/auth/forgot-password'
     | '/auth/login'
@@ -155,11 +201,16 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/auth/two-factor'
     | '/auth/verify-email'
+    | '/device/confirmation'
+    | '/device'
   id:
     | '__root__'
     | '/'
     | '/auth'
+    | '/device'
+    | '/_app'
     | '/onboarding'
+    | '/_app/members'
     | '/auth/check-email'
     | '/auth/forgot-password'
     | '/auth/login'
@@ -169,11 +220,15 @@ export interface FileRouteTypes {
     | '/auth/signup'
     | '/auth/two-factor'
     | '/auth/verify-email'
+    | '/device/confirmation'
+    | '/device/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRouteRoute: typeof AuthRouteRouteWithChildren
+  DeviceRouteRoute: typeof DeviceRouteRouteWithChildren
+  AppRoute: typeof AppRouteWithChildren
   OnboardingRoute: typeof OnboardingRoute
 }
 
@@ -184,6 +239,20 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/device': {
+      id: '/device'
+      path: '/device'
+      fullPath: '/device'
+      preLoaderRoute: typeof DeviceRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -199,6 +268,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/device/': {
+      id: '/device/'
+      path: '/'
+      fullPath: '/device/'
+      preLoaderRoute: typeof DeviceIndexRouteImport
+      parentRoute: typeof DeviceRouteRoute
+    }
+    '/device/confirmation': {
+      id: '/device/confirmation'
+      path: '/confirmation'
+      fullPath: '/device/confirmation'
+      preLoaderRoute: typeof DeviceConfirmationRouteImport
+      parentRoute: typeof DeviceRouteRoute
     }
     '/auth/verify-email': {
       id: '/auth/verify-email'
@@ -263,6 +346,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCheckEmailRouteImport
       parentRoute: typeof AuthRouteRoute
     }
+    '/_app/members': {
+      id: '/_app/members'
+      path: '/members'
+      fullPath: '/members'
+      preLoaderRoute: typeof AppMembersRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -294,9 +384,35 @@ const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(
   AuthRouteRouteChildren,
 )
 
+interface DeviceRouteRouteChildren {
+  DeviceConfirmationRoute: typeof DeviceConfirmationRoute
+  DeviceIndexRoute: typeof DeviceIndexRoute
+}
+
+const DeviceRouteRouteChildren: DeviceRouteRouteChildren = {
+  DeviceConfirmationRoute: DeviceConfirmationRoute,
+  DeviceIndexRoute: DeviceIndexRoute,
+}
+
+const DeviceRouteRouteWithChildren = DeviceRouteRoute._addFileChildren(
+  DeviceRouteRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppMembersRoute: typeof AppMembersRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppMembersRoute: AppMembersRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRouteRoute: AuthRouteRouteWithChildren,
+  DeviceRouteRoute: DeviceRouteRouteWithChildren,
+  AppRoute: AppRouteWithChildren,
   OnboardingRoute: OnboardingRoute,
 }
 export const routeTree = rootRouteImport

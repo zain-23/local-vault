@@ -16,7 +16,7 @@ type Membership struct {
 	WorkspaceID string    `bson:"workspace_id" json:"workspace_id"`
 	UserID      string    `bson:"user_id" json:"user_id"`
 	Role        string    `bson:"role" json:"role"`    // owner | admin | member
-	InvitedBy   string    `bson:"invited_by" json:"invited_by,omitempty"`
+	InvitedBy   string    `bson:"invited_by,omitempty" json:"invited_by,omitempty"`
 	JoinedAt    time.Time `bson:"joined_at" json:"joined_at"`
 }
 
