@@ -6,6 +6,12 @@
 .env
 *.md
 docs
+apps/web
+packages
+node_modules
+.turbo
+.superpowers
+local-vault-design
 public
 dist
 scripts

@@ -44,7 +44,8 @@ go install github.com/zain-23/local-vault@latest
 ```bash
 git clone https://github.com/zain-23/local-vault
 cd local-vault
-go build -o lv .
+go build -o lv ./apps/cli
+# or: task cli:build
 sudo mv lv /usr/local/bin/lv
 ```
 
@@ -254,6 +255,33 @@ lv import .env.production --env production
 ```
 
 Your app code stays exactly the same — `process.env.KEY` works as always.
+
+---
+
+## Monorepo development
+
+This repo is a pnpm + Turborepo monorepo with Go apps orchestrated via [Task](https://taskfile.dev):
+
+```text
+apps/cli      Go CLI (`lv`)
+apps/server   Go API + worker
+apps/web      React web app
+packages/     Shared TypeScript packages
+```
+
+```bash
+pnpm install          # JS workspaces
+pnpm dev              # web (Turbo)
+pnpm build            # all JS packages
+pnpm lint / test      # JS lint & tests
+
+task cli:build        # build lv
+task server:run       # run API
+task test:go          # go test ./...
+task docker:server    # Docker image for API
+```
+
+Requires [pnpm](https://pnpm.io), [Go](https://go.dev), and optionally [Task](https://taskfile.dev).
 
 ---
 

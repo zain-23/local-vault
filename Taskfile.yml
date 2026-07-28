@@ -1,0 +1,42 @@
+version: "3"
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+
+  cli:build:
+    desc: Build the lv CLI binary
+    cmds:
+      - go build -o lv ./apps/cli
+
+  cli:run:
+    desc: Run the lv CLI (pass CLI_ARGS)
+    cmds:
+      - go run ./apps/cli {{.CLI_ARGS}}
+
+  server:run:
+    desc: Run the API server
+    cmds:
+      - go run ./apps/server
+
+  server:worker:
+    desc: Run the email worker
+    cmds:
+      - go run ./apps/server/worker
+
+  docker:server:
+    desc: Build the server Docker image
+    cmds:
+      - docker build -f apps/server/Dockerfile -t local-vault-server .
+
+  test:go:
+    desc: Run all Go tests
+    cmds:
+      - go test ./...
+
+  tidy:
+    desc: Tidy Go modules
+    cmds:
+      - go mod tidy

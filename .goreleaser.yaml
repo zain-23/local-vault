@@ -11,7 +11,7 @@ before:
 builds:
   - id: lv
     binary: lv
-    main: .                       # entry point is main.go at the repo root
+    main: ./apps/cli
     env:
       - CGO_ENABLED=0
     goos:
@@ -23,9 +23,8 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      # Inject the production server URL from the build environment.
-      # SERVER_URL is supplied by the release workflow — not hardcoded here.
-      - -X github.com/zain-23/local-vault/internal/config.defaultServerURL={{ .Env.SERVER_URL }}
+      # Injected at release time from the workflow (prod vs develop SERVER_URL).
+      - -X github.com/zain-23/local-vault/apps/cli/internal/appstate.defaultServerURL={{ .Env.SERVER_URL }}
 
 archives:
   - id: lv
@@ -52,3 +51,5 @@ release:
   github:
     owner: zain-23
     name: local-vault
+  # Tags like v1.2.3-dev.1 are marked as GitHub prereleases automatically.
+  prerelease: auto

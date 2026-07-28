@@ -1,0 +1,7 @@
+packages:
+  - "apps/web"
+  - "packages/*"
+
+onlyBuiltDependencies:
+  - esbuild
+  - lightningcss

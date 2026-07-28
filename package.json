@@ -1,0 +1,19 @@
+{
+  "name": "local-vault",
+  "private": true,
+  "packageManager": "pnpm@10.12.1",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "check": "turbo run check",
+    "format": "turbo run format",
+    "test:go": "task test:go",
+    "cli:build": "task cli:build",
+    "server:run": "task server:run"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4"
+  }
+}
