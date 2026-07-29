@@ -1,0 +1,19 @@
+# Heroku Container Stack manifest
+# Docs: https://devcenter.heroku.com/articles/build-docker-images-heroku-yml
+setup:
+  addons:
+    - plan: cloudamqp:lemur
+      as: CLOUDAMQP
+  config:
+    ENV: production
+
+build:
+  docker:
+    web: apps/server/Dockerfile
+
+run:
+  web: /server
+  worker:
+    command:
+      - /worker
+    image: web

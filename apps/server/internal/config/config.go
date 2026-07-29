@@ -73,7 +73,8 @@ func Load() Config {
 		FrontendURL:        getEnv("FRONTEND_URL", "http://localhost:3000"),
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000"),
 
-		RabbitMQURL: 		getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
+		// Prefer RABBITMQ_URL; fall back to Heroku CloudAMQP's CLOUDAMQP_URL
+		RabbitMQURL: getEnv("RABBITMQ_URL", getEnv("CLOUDAMQP_URL", "amqp://guest:guest@localhost:5672/")),
 		EmailMaxRetries:	parseInt(getEnv("EMAIL_MAX_RETRIES", "5")),
 		EmailRetryDelay: 	parseDuration(getEnv("EMAIL_RETRY_DELAY", "30s")),
 	}
