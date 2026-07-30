@@ -9,7 +9,9 @@ setup:
 
 build:
   docker:
-    web: apps/server/Dockerfile
+    # Must be at repo root: Heroku sets build context to the Dockerfile's directory
+    web: Dockerfile
+
 
 run:
   web: /server
