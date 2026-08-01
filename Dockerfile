@@ -13,10 +13,13 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
     -o /out/worker ./apps/server/worker
 
 # ---- runtime: API + worker binaries in one image ----
-FROM gcr.io/distroless/static-debian12:nonroot
+# Alpine (not distroless): Heroku Container wraps process commands as
+# `/bin/sh -c …`, which distroless cannot run.
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates
 COPY --from=build /out/server /server
 COPY --from=build /out/worker /worker
 EXPOSE 8080
-USER nonroot:nonroot
+USER nobody
 # Default process is the API; Heroku overrides via heroku.yml for worker
 CMD ["/server"]
