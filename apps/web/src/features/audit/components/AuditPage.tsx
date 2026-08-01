@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQueryStates } from "nuqs";
 
 import { Pagination } from "#/components/shared";
+import { Spinner } from "#/components/ui";
 import { useAuditEvents } from "#/features/audit/hooks";
 import {
   auditSearchOptions,
@@ -10,7 +11,6 @@ import {
 } from "#/features/audit/utils";
 import { useWorkspaceStore } from "#/stores";
 
-import { AuditSkeleton } from "./AuditSkeleton.tsx";
 import { AuditTimeline } from "./AuditTimeline.tsx";
 import { AuditToolbar } from "./AuditToolbar.tsx";
 
@@ -38,7 +38,6 @@ export function AuditPage() {
 
   const events = data?.items ?? [];
   const meta = data?.meta;
-  const total = meta?.total ?? 0;
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -53,19 +52,16 @@ export function AuditPage() {
               "the workspace"
             )}
             , signed and timestamped
-            {total > 0 ? (
-              <span className="text-muted-foreground">
-                {" "}
-                · {total.toLocaleString()} event{total === 1 ? "" : "s"}
-              </span>
-            ) : null}
           </p>
         </div>
         <AuditToolbar />
       </div>
 
       {isLoading ? (
-        <AuditSkeleton />
+        <div className="flex items-center justify-center py-16 text-muted-foreground">
+          <Spinner size="lg" />
+          <span className="sr-only">Loading</span>
+        </div>
       ) : isError ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {error?.message || "Could not load audit events"}

@@ -19,4 +19,4 @@ COPY --from=build /out/worker /worker
 EXPOSE 8080
 USER nonroot:nonroot
 # Default process is the API; Heroku overrides via heroku.yml for worker
-ENTRYPOINT ["/server"]
+CMD ["/server"]

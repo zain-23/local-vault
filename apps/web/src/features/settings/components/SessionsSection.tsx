@@ -15,7 +15,10 @@ import {
   useRevokeOtherSessions,
   useRevokeSession,
 } from "#/features/settings/hooks";
-import { formatMemberSince } from "#/features/settings/utils";
+import {
+  formatMemberSince,
+  formatSessionDevice,
+} from "#/features/settings/utils";
 
 export function SessionsSection() {
   const { data: sessions = [], isLoading, isError } = useQuery(sessionsQuery);
@@ -85,7 +88,9 @@ export function SessionsSection() {
               <TableRow key={session.id}>
                 <TableCell className="px-3.5 py-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{session.user_agent}</span>
+                    <span className="font-medium">
+                      {formatSessionDevice(session.user_agent)}
+                    </span>
                     {session.current ? (
                       <Badge
                         variant="outline"
