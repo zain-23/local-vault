@@ -1,31 +1,147 @@
 <!doctype html>
-<html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="supported-color-schemes" content="dark" />
+    <title>LocalVault</title>
+  </head>
   <body
     style="
-      font-family: Arial, sans-serif;
-      background: #f6f6f6;
-      padding: 24px;
       margin: 0;
+      padding: 0;
+      background-color: #12110f;
+      font-family:
+        -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
+        sans-serif;
+      -webkit-font-smoothing: antialiased;
     "
   >
-    <div
-      style="
-        max-width: 480px;
-        margin: 0 auto;
-        background: #ffffff;
-        border-radius: 8px;
-        padding: 32px;
-      "
+    <table
+      role="presentation"
+      width="100%"
+      cellpadding="0"
+      cellspacing="0"
+      border="0"
+      style="background-color: #12110f; padding: 32px 16px"
     >
-      <h1 style="color: #111111; font-size: 20px; margin: 0 0 16px">
-        LocalVault
-      </h1>
-      {{/* each email template supplies this "content" block */}} {{block
-      "content" .}}{{end}}
-      <hr style="border: none; border-top: 1px solid #eeeeee; margin: 24px 0" />
-      <p style="color: #999999; font-size: 12px; margin: 0">
-        © LocalVault. If you didn't request this, you can ignore this email.
-      </p>
-    </div>
+      <tr>
+        <td align="center">
+          <table
+            role="presentation"
+            width="100%"
+            cellpadding="0"
+            cellspacing="0"
+            border="0"
+            style="
+              max-width: 480px;
+              background-color: #1a1815;
+              border: 1px solid #302c27;
+              border-radius: 12px;
+            "
+          >
+            <tr>
+              <td
+                align="center"
+                style="padding: 36px 32px 28px; text-align: center"
+              >
+                <!-- LocalVault mark (inline SVG) + wordmark -->
+                <table
+                  role="presentation"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  style="margin: 0 auto 28px"
+                >
+                  <tr>
+                    <td style="vertical-align: middle; padding-right: 10px">
+                      <svg
+                        width="28"
+                        height="28"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true"
+                      >
+                        <rect
+                          x="2.5"
+                          y="2.5"
+                          width="19"
+                          height="19"
+                          rx="3.5"
+                          stroke="#f5f2ed"
+                          stroke-width="1.6"
+                        />
+                        <rect
+                          x="7"
+                          y="7"
+                          width="10"
+                          height="10"
+                          rx="1.5"
+                          stroke="#e5b567"
+                          stroke-width="1.6"
+                        />
+                        <rect
+                          x="10.5"
+                          y="10.5"
+                          width="3"
+                          height="3"
+                          fill="#e5b567"
+                        />
+                        <path
+                          d="M2.5 12h2M19.5 12h2M12 2.5v2M12 19.5v2"
+                          stroke="#f5f2ed"
+                          stroke-width="1.6"
+                          stroke-linecap="round"
+                        />
+                      </svg>
+                    </td>
+                    <td
+                      style="
+                        vertical-align: middle;
+                        font-size: 18px;
+                        font-weight: 600;
+                        letter-spacing: -0.02em;
+                        color: #f5f2ed;
+                      "
+                    >
+                      LocalVault
+                    </td>
+                  </tr>
+                </table>
+
+                {{block "content" .}}{{end}}
+
+                <table
+                  role="presentation"
+                  width="100%"
+                  cellpadding="0"
+                  cellspacing="0"
+                  border="0"
+                  style="margin-top: 28px"
+                >
+                  <tr>
+                    <td
+                      style="
+                        border-top: 1px solid #302c27;
+                        padding-top: 18px;
+                        font-size: 11px;
+                        line-height: 1.5;
+                        color: #6c675f;
+                        text-align: center;
+                      "
+                    >
+                      © 2026 LocalVault. If you didn’t request this, you can
+                      ignore this email.
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
   </body>
 </html>
