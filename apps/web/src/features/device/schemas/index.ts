@@ -11,13 +11,13 @@ const alphabetClass = `[${USER_CODE_ALPHABET}]`;
 // Validates the raw 8-character code (no hyphen) — the input strips the dash so
 // paste and typing share one value.
 export const deviceCodeSchema = z.object({
-  code: z
-    .string()
-    .length(USER_CODE_LENGTH, "Enter all 8 characters.")
-    .regex(
-      new RegExp(`^${alphabetClass}{${USER_CODE_LENGTH}}$`),
-      "That code contains characters we don't use.",
-    ),
+	code: z
+		.string()
+		.length(USER_CODE_LENGTH, "Enter all 8 characters.")
+		.regex(
+			new RegExp(`^${alphabetClass}{${USER_CODE_LENGTH}}$`),
+			"That code contains characters we don't use.",
+		),
 });
 
 export type DeviceCodeValues = z.infer<typeof deviceCodeSchema>;
@@ -25,18 +25,18 @@ export type DeviceCodeValues = z.infer<typeof deviceCodeSchema>;
 // Keeps only allowed characters and upper-cases them — used to sanitise both
 // typed input and pasted values before they reach the form.
 export function normalizeUserCode(raw: string): string {
-  const allowed = new Set(USER_CODE_ALPHABET);
-  return raw
-    .toUpperCase()
-    .split("")
-    .filter((ch) => allowed.has(ch))
-    .join("")
-    .slice(0, USER_CODE_LENGTH);
+	const allowed = new Set(USER_CODE_ALPHABET);
+	return raw
+		.toUpperCase()
+		.split("")
+		.filter((ch) => allowed.has(ch))
+		.join("")
+		.slice(0, USER_CODE_LENGTH);
 }
 
 // Turns the raw 8-char value into the hyphenated form the server stores and the
 // route uses (WDJFX4K2 -> WDJF-X4K2).
 export function toUserCodeParam(code: string): string {
-  const c = normalizeUserCode(code);
-  return `${c.slice(0, 4)}-${c.slice(4)}`;
+	const c = normalizeUserCode(code);
+	return `${c.slice(0, 4)}-${c.slice(4)}`;
 }

@@ -9,20 +9,20 @@ const POLL_INTERVAL_MS = 3_000;
 // resolves `connected` once at least one authorized device shows up. Polling
 // stops the moment we're connected so we don't hammer the API after success.
 export function useDeviceConnection() {
-  const query = useQuery({
-    ...devicesQuery,
-    refetchInterval: (q) => {
-      const devices = q.state.data ?? [];
-      return devices.length > 0 ? false : POLL_INTERVAL_MS;
-    },
-  });
+	const query = useQuery({
+		...devicesQuery,
+		refetchInterval: (q) => {
+			const devices = q.state.data ?? [];
+			return devices.length > 0 ? false : POLL_INTERVAL_MS;
+		},
+	});
 
-  const devices = query.data ?? [];
+	const devices = query.data ?? [];
 
-  return {
-    devices,
-    connected: devices.length > 0,
-    isWaiting: query.isPending || (devices.length === 0 && query.isFetching),
-    error: query.error,
-  };
+	return {
+		devices,
+		connected: devices.length > 0,
+		isWaiting: query.isPending || (devices.length === 0 && query.isFetching),
+		error: query.error,
+	};
 }

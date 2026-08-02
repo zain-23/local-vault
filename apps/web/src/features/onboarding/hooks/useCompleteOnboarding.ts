@@ -11,18 +11,18 @@ import type { ApiResponse } from "#/services/api";
 // guard reads that cached user, so a stale `onboarded: false` would bounce the
 // user straight back here.
 export function useCompleteOnboarding() {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
+	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 
-  return useMutation<ApiResponse<null>, Error, void>({
-    mutationFn: () => onboardingService.completeOnboarding(),
-    mutationKey: ONBOARDING_KEYS.complete(),
-    onSuccess: async () => {
-      await queryClient.fetchQuery({ ...meQuery, staleTime: 0 });
-      navigate({ to: "/" });
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
+	return useMutation<ApiResponse<null>, Error, void>({
+		mutationFn: () => onboardingService.completeOnboarding(),
+		mutationKey: ONBOARDING_KEYS.complete(),
+		onSuccess: async () => {
+			await queryClient.fetchQuery({ ...meQuery, staleTime: 0 });
+			navigate({ to: "/" });
+		},
+		onError: (error) => {
+			toast.error(error.message);
+		},
+	});
 }

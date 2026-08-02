@@ -11,17 +11,17 @@ const TOTAL_STEPS = 4;
 // Container for the post-signup wizard. Holds the current step and advances
 // forward only — no back navigation, no integration. Each step gets onContinue.
 function OnboardingWizard() {
-  const [step, setStep] = useState(1);
-  const goNext = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS));
+	const [step, setStep] = useState(1);
+	const goNext = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS));
 
-  return (
-    <OnboardingLayout step={step}>
-      {step === 1 && <StepWorkspace onContinue={goNext} />}
-      {step === 2 && <StepInstallCli onContinue={goNext} />}
-      {step === 3 && <StepLinkTerminal onContinue={goNext} />}
-      {step === 4 && <StepDone />}
-    </OnboardingLayout>
-  );
+	return (
+		<OnboardingLayout step={step}>
+			{step === 1 && <StepWorkspace onContinue={goNext} />}
+			{step === 2 && <StepInstallCli onContinue={goNext} />}
+			{step === 3 && <StepLinkTerminal onContinue={goNext} />}
+			{step === 4 && <StepDone />}
+		</OnboardingLayout>
+	);
 }
 
 export { OnboardingWizard };

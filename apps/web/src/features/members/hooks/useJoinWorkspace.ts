@@ -11,7 +11,7 @@ import type { ApiResponse } from "#/services/api";
 import { useWorkspaceStore } from "#/stores";
 
 export interface JoinWorkspaceVariables extends JoinInput {
-  workspaceId: string;
+	workspaceId: string;
 }
 
 // POST /members/join — accept an invite token. The joiner isn't a member yet, so
@@ -19,37 +19,37 @@ export interface JoinWorkspaceVariables extends JoinInput {
 // On success: refresh workspaces, set the joined workspace active, then route
 // into the app (or onboarding if the account isn't finished yet).
 export function useJoinWorkspace() {
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const setActive = useWorkspaceStore((s) => s.setActive);
+	const queryClient = useQueryClient();
+	const navigate = useNavigate();
+	const setActive = useWorkspaceStore((s) => s.setActive);
 
-  return useMutation<ApiResponse<JoinResult>, Error, JoinWorkspaceVariables>({
-    mutationKey: MEMBER_KEYS.join(""),
-    mutationFn: ({ workspaceId, token }) =>
-      memberService.join(workspaceId, { token }),
-    onSuccess: async (res, { workspaceId }) => {
-      toast.success(res.message || "Joined workspace");
+	return useMutation<ApiResponse<JoinResult>, Error, JoinWorkspaceVariables>({
+		mutationKey: MEMBER_KEYS.join(""),
+		mutationFn: ({ workspaceId, token }) =>
+			memberService.join(workspaceId, { token }),
+		onSuccess: async (res, { workspaceId }) => {
+			toast.success(res.message || "Joined workspace");
 
-      queryClient.invalidateQueries({
-        queryKey: MEMBER_KEYS.workspace(workspaceId),
-      });
+			queryClient.invalidateQueries({
+				queryKey: MEMBER_KEYS.workspace(workspaceId),
+			});
 
-      const list = await queryClient.fetchQuery(workspacesQuery);
-      const match = list?.find((w) => w.workspace.id === workspaceId);
-      const role = parseMemberRole(match?.role ?? res.data.role) ?? "member";
+			const list = await queryClient.fetchQuery(workspacesQuery);
+			const match = list?.find((w) => w.workspace.id === workspaceId);
+			const role = parseMemberRole(match?.role ?? res.data.role) ?? "member";
 
-      setActive({
-        id: workspaceId,
-        name: match?.workspace.name ?? "Workspace",
-        plan: "Free",
-        role,
-      });
+			setActive({
+				id: workspaceId,
+				name: match?.workspace.name ?? "Workspace",
+				plan: "Free",
+				role,
+			});
 
-      const user = queryClient.getQueryData(meQuery.queryKey);
-      await navigate({
-        to: user?.onboarded ? "/members" : "/onboarding",
-      });
-    },
-    meta: { invalidates: [ONBOARDING_KEYS.workspaces()] },
-  });
+			const user = queryClient.getQueryData(meQuery.queryKey);
+			await navigate({
+				to: user?.onboarded ? "/members" : "/onboarding",
+			});
+		},
+		meta: { invalidates: [ONBOARDING_KEYS.workspaces()] },
+	});
 }

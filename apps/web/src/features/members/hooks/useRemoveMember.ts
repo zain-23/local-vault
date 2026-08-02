@@ -7,24 +7,24 @@ import { useWorkspaceStore } from "#/stores";
 
 // DELETE /members/:userId — remove a member from the active workspace.
 export function useRemoveMember() {
-  const queryClient = useQueryClient();
-  const workspaceId = useWorkspaceStore((s) => s.active?.id);
+	const queryClient = useQueryClient();
+	const workspaceId = useWorkspaceStore((s) => s.active?.id);
 
-  return useMutation<ApiResponse<null>, Error, string>({
-    mutationKey: MEMBER_KEYS.remove(workspaceId ?? ""),
-    mutationFn: (userId) => {
-      if (!workspaceId) throw new Error("No active workspace");
-      return memberService.removeMember(workspaceId, userId);
-    },
-    onSuccess: (res) => {
-      toast.success(res.message || "Member removed");
-      if (!workspaceId) return;
-      queryClient.invalidateQueries({
-        queryKey: MEMBER_KEYS.workspace(workspaceId),
-      });
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
+	return useMutation<ApiResponse<null>, Error, string>({
+		mutationKey: MEMBER_KEYS.remove(workspaceId ?? ""),
+		mutationFn: (userId) => {
+			if (!workspaceId) throw new Error("No active workspace");
+			return memberService.removeMember(workspaceId, userId);
+		},
+		onSuccess: (res) => {
+			toast.success(res.message || "Member removed");
+			if (!workspaceId) return;
+			queryClient.invalidateQueries({
+				queryKey: MEMBER_KEYS.workspace(workspaceId),
+			});
+		},
+		onError: (error) => {
+			toast.error(error.message);
+		},
+	});
 }
