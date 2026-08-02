@@ -52,7 +52,6 @@
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.4.5",
-		"@cloudflare/vite-plugin": "^1.48.0",
 		"@local-vault/typescript-config": "workspace:*",
 		"@tailwindcss/typography": "^0.5.16",
 		"@tanstack/devtools-vite": "latest",
@@ -64,6 +63,7 @@
 		"@types/react-dom": "^19.2.0",
 		"@vitejs/plugin-react": "^6.0.1",
 		"jsdom": "^28.1.0",
+		"nitro": "3.0.260610-beta",
 		"typescript": "^6.0.2",
 		"vite": "^8.0.0",
 		"vitest": "^4.1.5",
