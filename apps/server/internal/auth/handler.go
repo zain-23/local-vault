@@ -124,6 +124,25 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	return response.Success(c, result.Tokens.User, fiber.StatusOK, "login successful")
 }
 
+// Login2FA handles POST /api/v1/auth/login/2fa — completes login after TOTP/backup code.
+func (h *Handler) Login2FA(c *fiber.Ctx) error {
+	var req Login2FARequest
+	if err := c.BodyParser(&req); err != nil {
+		return apperror.ErrInvalidBody
+	}
+	if msg := validate.Struct(req); msg != "" {
+		return apperror.New(400, msg)
+	}
+
+	resp, err := h.service.Login2FA(c.UserContext(), req, c.IP(), c.Get("User-Agent"))
+	if err != nil {
+		return err
+	}
+
+	setAuthCookies(c, h.cfg, resp)
+	return response.Success(c, resp.User, fiber.StatusOK, "login successful")
+}
+
 // RefreshToken handles POST /api/v1/auth/refresh
 func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	refreshToken := c.Cookies("refresh_token")
@@ -138,18 +157,16 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	return response.Success(c, "", fiber.StatusOK, "token refreshed")
 }
 
-// Logout handles POST /api/v1/auth/logout
+// Logout handles POST /api/v1/auth/logout — reads the refresh cookie (HttpOnly),
+// deletes the session when present, and always clears auth cookies.
 func (h *Handler) Logout(c *fiber.Ctx) error {
-	var req RefreshRequest
-	if err := c.BodyParser(&req); err != nil {
-		return apperror.ErrInvalidBody
+	refreshToken := c.Cookies("refresh_token")
+	if refreshToken != "" {
+		if err := h.service.Logout(c.UserContext(), refreshToken); err != nil {
+			return err
+		}
 	}
-	if msg := validate.Struct(req); msg != "" {
-		return apperror.New(400, msg)
-	}
-	if err := h.service.Logout(c.UserContext(), req.RefreshToken); err != nil {
-		return err
-	}
+	h.clearAuthCookies(c)
 	return response.Success(c, nil, fiber.StatusOK, "logged out")
 }
 

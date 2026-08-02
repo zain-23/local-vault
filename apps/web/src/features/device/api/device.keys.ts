@@ -4,11 +4,11 @@
 // approval keys are scoped by user code — two open tabs approving different
 // codes must not share a cache entry.
 export const DEVICE_KEYS = {
-  all: ["device"] as const,
-  approval: (userCode: string) =>
-    [...DEVICE_KEYS.all, "approval", userCode] as const,
-  decide: (userCode: string) =>
-    [...DEVICE_KEYS.all, "decide", userCode] as const,
-  devices: () => [...DEVICE_KEYS.all, "list"] as const,
-  revoke: (id: string) => [...DEVICE_KEYS.all, "revoke", id] as const,
+	all: ["device"] as const,
+	approval: (userCode: string) =>
+		[...DEVICE_KEYS.all, "approval", userCode] as const,
+	decide: (userCode: string) =>
+		[...DEVICE_KEYS.all, "decide", userCode] as const,
+	devices: () => [...DEVICE_KEYS.all, "list"] as const,
+	revoke: (id: string) => [...DEVICE_KEYS.all, "revoke", id] as const,
 };

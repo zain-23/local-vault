@@ -6,21 +6,21 @@ import { AuthHeading } from "./AuthHeading.tsx";
 
 // Terminal confirmation after a successful password change.
 function ResetSuccessPanel() {
-  return (
-    <>
-      <AuthHeading
-        title="Password updated"
-        subtitle="Your password has been changed. Sign in with your new password to continue."
-      />
+	return (
+		<>
+			<AuthHeading
+				title="Password updated"
+				subtitle="Your password has been changed. Sign in with your new password to continue."
+			/>
 
-      <Button asChild className="w-full">
-        <Link to="/auth/login">
-          Continue to login
-          <ArrowRight />
-        </Link>
-      </Button>
-    </>
-  );
+			<Button asChild className="w-full">
+				<Link to="/auth/login">
+					Continue to login
+					<ArrowRight />
+				</Link>
+			</Button>
+		</>
+	);
 }
 
 export { ResetSuccessPanel };

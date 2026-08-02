@@ -8,6 +8,7 @@ func RegisterRoutes(app *fiber.App, h *Handler, oauth *OAuthHandler, authMW fibe
 
 	auth.Post("/signup", h.Signup)
 	auth.Post("/login", h.Login)
+	auth.Post("/login/2fa", h.Login2FA)
 	auth.Post("/refresh", h.RefreshToken)
 	auth.Post("/logout", h.Logout)
 	auth.Post("/verify-email", h.VerifyEmail)

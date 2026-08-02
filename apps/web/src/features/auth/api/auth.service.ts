@@ -1,72 +1,78 @@
 import { type ApiClient, api } from "#/services/api";
 import type {
-  AuthTokens,
-  LoginInput,
-  LoginResult,
-  RefreshResponse,
-  ResetPasswordInput,
-  SignupInput,
-  User,
+	AuthTokens,
+	LoginInput,
+	LoginResult,
+	RefreshResponse,
+	ResetPasswordInput,
+	SignupInput,
+	User,
+	Verify2FAInput,
 } from "./auth.types.ts";
 
 // One method per server route (server/internal/auth/routes.go). Generics are the
 // endpoint's `data` type; the useful text for message-only routes lives in the
 // returned envelope's `message`. Client is injected for easy test mocking.
 class AuthService {
-  constructor(private readonly client: ApiClient = api) {}
+	constructor(private readonly client: ApiClient = api) {}
 
-  // Message-only: data is "" — read the envelope's `message`.
-  signup(input: SignupInput) {
-    return this.client.post<string>("/auth/signup", input);
-  }
+	// Message-only: data is "" — read the envelope's `message`.
+	signup(input: SignupInput) {
+		return this.client.post<string>("/auth/signup", input);
+	}
 
-  // Resolves to the signed-in User (cookies set) OR a 2FA challenge.
-  login(input: LoginInput) {
-    return this.client.post<LoginResult>("/auth/login", input);
-  }
+	// Resolves to the signed-in User (cookies set) OR a 2FA challenge.
+	login(input: LoginInput) {
+		return this.client.post<LoginResult>("/auth/login", input);
+	}
 
-  // Refresh reads the refresh_token cookie server-side; no body needed.
-  refresh() {
-    return this.client.post<RefreshResponse>("/auth/refresh");
-  }
+	// Completes login after TOTP — cookies set on success, same as password login.
+	login2FA(input: Verify2FAInput) {
+		return this.client.post<User>("/auth/login/2fa", input);
+	}
 
-  logout() {
-    return this.client.post<null>("/auth/logout");
-  }
+	// Refresh reads the refresh_token cookie server-side; no body needed.
+	refresh() {
+		return this.client.post<RefreshResponse>("/auth/refresh");
+	}
 
-  // Message-only: token rides in the query, server verifies and returns no body.
-  verifyEmail(token: string) {
-    return this.client.post<null>("/auth/verify-email", undefined, {
-      params: { token },
-    });
-  }
+	logout() {
+		return this.client.post<null>("/auth/logout");
+	}
 
-  forgotPassword(email: string) {
-    return this.client.post<null>("/auth/forgot-password", { email });
-  }
+	// Message-only: token rides in the query, server verifies and returns no body.
+	verifyEmail(token: string) {
+		return this.client.post<null>("/auth/verify-email", undefined, {
+			params: { token },
+		});
+	}
 
-  resetPassword(input: ResetPasswordInput) {
-    return this.client.post<null>("/auth/reset-password", input);
-  }
+	forgotPassword(email: string) {
+		return this.client.post<null>("/auth/forgot-password", { email });
+	}
 
-  sendMagicLink(email: string) {
-    return this.client.post<null>("/auth/magic-link", { email });
-  }
+	resetPassword(input: ResetPasswordInput) {
+		return this.client.post<null>("/auth/reset-password", input);
+	}
 
-  // Consuming the magic-link token logs the user in — token bundle in the body.
-  verifyMagicLink(token: string) {
-    return this.client.post<AuthTokens>("/auth/magic-link/verify", { token });
-  }
+	sendMagicLink(email: string) {
+		return this.client.post<null>("/auth/magic-link", { email });
+	}
 
-  // OAuth login
-  oauthUrl(provider: "google" = "google") {
-    return `${import.meta.env.VITE_API_URL}/auth/oauth/${provider}`;
-  }
+	// Consuming the magic-link token logs the user in — token bundle in the body.
+	verifyMagicLink(token: string) {
+		return this.client.post<AuthTokens>("/auth/magic-link/verify", { token });
+	}
 
-  // Resolve to the signed-in User; 401 when there is no valid session
-  me() {
-    return this.client.get<User>("/account/me");
-  }
+	// OAuth login
+	oauthUrl(provider: "google" = "google") {
+		return `${import.meta.env.VITE_API_URL}/auth/oauth/${provider}`;
+	}
+
+	// Resolve to the signed-in User; 401 when there is no valid session
+	me() {
+		return this.client.get<User>("/account/me");
+	}
 }
 
 // Shared singleton for app use; construct with a custom client in tests.

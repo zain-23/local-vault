@@ -33,8 +33,9 @@ type Login2FARequiredResponse struct {
 }
 
 type Login2FARequest struct {
-	TempToken string `json:"temp_token"`
-	TOTPCode  string `json:"totp_code"`
+	TempToken  string `json:"temp_token" validate:"required"`
+	TOTPCode   string `json:"totp_code" validate:"omitempty,len=6"`
+	BackupCode string `json:"backup_code" validate:"omitempty"`
 }
 
 type RefreshRequest struct {

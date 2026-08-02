@@ -7,18 +7,18 @@ import type { MemberRole } from "#/features/members/types";
 // build their requests. `role` is the caller's membership in this workspace
 // (from GET /workspaces) — used to gate invite UI.
 export interface Workspace {
-  id: string;
-  name: string;
-  plan: string;
-  role: MemberRole | null;
+	id: string;
+	name: string;
+	plan: string;
+	role: MemberRole | null;
 }
 
 interface WorkspaceState {
-  active: Workspace | null;
-  setActive: (workspace: Workspace) => void;
+	active: Workspace | null;
+	setActive: (workspace: Workspace) => void;
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set) => ({
-  active: null,
-  setActive: (workspace) => set({ active: workspace }),
+	active: null,
+	setActive: (workspace) => set({ active: workspace }),
 }));

@@ -245,7 +245,7 @@ func (s *Service) Login(ctx context.Context, req LoginRequest, ip, userAgent str
 	return  &LoginResult{Tokens: tokens}, nil
 } 
 
-// Login2FA completes login after user enters TOTP code
+// Login2FA completes login after the user proves 2FA with a TOTP or backup code.
 func (s *Service) Login2FA(ctx context.Context, req Login2FARequest, ip, userAgent string) (*LoginResponse, error) {
 	claims, err := s.jwt.ValidateToken(req.TempToken)
 	if err != nil || claims.Type != "2fa_temp" {
@@ -256,9 +256,23 @@ func (s *Service) Login2FA(ctx context.Context, req Login2FARequest, ip, userAge
 	if err != nil || user == nil {
 		return nil, apperror.New(401, "user not found")
 	}
+	if !user.TwoFactorEnabled {
+		return nil, apperror.New(400, "2FA is not enabled")
+	}
 
-	// verify TOTP - placeholder until Account domain implements 2FA setup
-	if !totp.Validate(user.TwoFactorSecret, req.TOTPCode) {
+	ok := false
+	switch {
+	case req.TOTPCode != "":
+		ok = totp.Validate(user.TwoFactorSecret, req.TOTPCode)
+	case req.BackupCode != "":
+		ok, err = s.Store.ConsumeBackupCode(ctx, user.ID, totp.HashCode(req.BackupCode))
+		if err != nil {
+			return nil, apperror.ErrInternal
+		}
+	default:
+		return nil, apperror.New(400, "a totp_code or backup_code is required")
+	}
+	if !ok {
 		return nil, apperror.New(401, "invalid 2FA code")
 	}
 
@@ -321,7 +335,7 @@ func (s *Service) ForgotPassword(ctx context.Context, req ForgotPasswordRequest)
 			CreatedAt: now, 
 			ExpiresAt: now.Add(1 * time.Hour),
 		})
-		resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.FrontendURL, token)
+		resetURL := fmt.Sprintf("%s/auth/reset-password?token=%s", s.cfg.FrontendURL, token)
 		job := email.EmailJob{
 			Kind: email.KindPasswordReset,
 			To: user.Email,
