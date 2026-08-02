@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 
 import { meQuery } from "#/features/auth/api";
 import type { JoinInput, JoinResult } from "#/features/members/api";

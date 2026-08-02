@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useForm } from "react-hook-form";
 
 import {
@@ -9,6 +9,7 @@ import {
 	FieldGroup,
 	FieldLabel,
 } from "#/components/ui/index.ts";
+import { useResetPassword } from "../hooks/useResetPassword.ts";
 import {
 	type ResetPasswordValues,
 	resetPasswordSchema,
@@ -18,20 +19,53 @@ import { AuthHeading } from "./AuthHeading.tsx";
 import { PasswordField } from "./PasswordField.tsx";
 import { PasswordStrengthMeter } from "./PasswordStrengthMeter.tsx";
 
-function ResetPasswordForm() {
-	const navigate = useNavigate();
+function InvalidResetLink() {
+	return (
+		<>
+			<AuthHeading
+				title="Reset link invalid"
+				subtitle="This password reset link is missing, expired, or already used. Request a new one to continue."
+			/>
+
+			<Button asChild className="w-full">
+				<Link to="/auth/forgot-password">Request a new link</Link>
+			</Button>
+
+			<AuthFooter>
+				Back to{" "}
+				<Link
+					to="/auth/login"
+					className="font-medium text-foreground hover:underline"
+				>
+					Log in
+				</Link>
+			</AuthFooter>
+		</>
+	);
+}
+
+function ResetPasswordForm({ token }: { token?: string }) {
+	const { mutate, isPending, isError } = useResetPassword();
 	const {
 		register,
 		watch,
 		handleSubmit,
-		formState: { errors, isSubmitting },
+		formState: { errors },
 	} = useForm<ResetPasswordValues>({
 		resolver: zodResolver(resetPasswordSchema),
 		defaultValues: { password: "", confirmPassword: "" },
 	});
 
 	const password = watch("password");
-	const onSubmit = handleSubmit(() => navigate({ to: "/auth/reset-success" }));
+
+	// Missing from the URL, or rejected by the API (expired / already used / unknown).
+	if (!token || isError) {
+		return <InvalidResetLink />;
+	}
+
+	const onSubmit = handleSubmit(({ password: newPassword }) => {
+		mutate({ token, new_password: newPassword });
+	});
 
 	return (
 		<>
@@ -49,6 +83,7 @@ function ResetPasswordForm() {
 							autoComplete="new-password"
 							placeholder="At least 12 characters"
 							aria-invalid={!!errors.password}
+							disabled={isPending}
 							{...register("password")}
 						/>
 						<PasswordStrengthMeter value={password} />
@@ -62,12 +97,18 @@ function ResetPasswordForm() {
 							autoComplete="new-password"
 							placeholder="Re-enter your password"
 							aria-invalid={!!errors.confirmPassword}
+							disabled={isPending}
 							{...register("confirmPassword")}
 						/>
 						<FieldError errors={[errors.confirmPassword]} />
 					</Field>
 
-					<Button type="submit" className="w-full" disabled={isSubmitting}>
+					<Button
+						type="submit"
+						className="w-full"
+						disabled={isPending}
+						isLoading={isPending}
+					>
 						Update password
 					</Button>
 				</FieldGroup>

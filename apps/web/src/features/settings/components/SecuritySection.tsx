@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import QRCode from "react-qr-code";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 
 import { Badge, Button, Input, Label } from "#/components/ui";
 import { meQuery } from "#/features/auth/api";

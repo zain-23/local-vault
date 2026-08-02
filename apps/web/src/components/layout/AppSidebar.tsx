@@ -10,6 +10,7 @@ import {
 import {
 	Sidebar,
 	SidebarContent,
+	SidebarFooter,
 	SidebarGroup,
 	SidebarGroupLabel,
 	SidebarHeader,
@@ -19,6 +20,7 @@ import {
 	SidebarMenuItem,
 	SidebarRail,
 } from "#/components/ui";
+import { NavUser } from "./NavUser.tsx";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher.tsx";
 
 interface NavItem {
@@ -81,6 +83,10 @@ export function AppSidebar() {
 					</SidebarMenu>
 				</SidebarGroup>
 			</SidebarContent>
+
+			<SidebarFooter>
+				<NavUser />
+			</SidebarFooter>
 
 			<SidebarRail />
 		</Sidebar>

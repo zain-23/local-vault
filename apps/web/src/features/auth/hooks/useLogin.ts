@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouter, useSearch } from "@tanstack/react-router";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 import type { LoginInput, LoginResult } from "#/features/auth/api";
 import {
 	AUTH_KEYS,
@@ -9,6 +9,7 @@ import {
 	meQuery,
 } from "#/features/auth/api";
 import type { ApiResponse } from "#/services/api";
+import { setTempToken } from "../utils/tempToken.ts";
 
 export function useLogin() {
 	const navigate = useNavigate();
@@ -23,6 +24,7 @@ export function useLogin() {
 		mutationKey: AUTH_KEYS.login(),
 		onSuccess: async (res) => {
 			if (isTwoFactorRequired(res.data)) {
+				setTempToken(res.data.temp_token);
 				navigate({ to: "/auth/two-factor" });
 				return;
 			}

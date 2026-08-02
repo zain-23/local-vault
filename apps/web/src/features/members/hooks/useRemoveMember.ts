@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 
 import { MEMBER_KEYS, memberService } from "#/features/members/api";
 import type { ApiResponse } from "#/services/api";

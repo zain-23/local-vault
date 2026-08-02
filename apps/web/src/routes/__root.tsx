@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
-import { Toaster } from "#/components/ui/index.ts";
+import { Toaster } from "react-hot-toast";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import { Provider } from "../integrations/tanstack-query/root-provider";
 import appCss from "../styles.css?url";
@@ -37,6 +37,32 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 				rel: "stylesheet",
 				href: appCss,
 			},
+			{
+				rel: "icon",
+				href: "/favicon.ico",
+				sizes: "any",
+			},
+			{
+				rel: "icon",
+				type: "image/png",
+				href: "/favicon-32x32.png",
+				sizes: "32x32",
+			},
+			{
+				rel: "icon",
+				type: "image/png",
+				href: "/favicon-16x16.png",
+				sizes: "16x16",
+			},
+			{
+				rel: "apple-touch-icon",
+				href: "/apple-touch-icon.png",
+				sizes: "180x180",
+			},
+			{
+				rel: "manifest",
+				href: "/manifest.json",
+			},
 		],
 	}),
 	shellComponent: RootDocument,
@@ -58,7 +84,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 					<NuqsAdapter>{children}</NuqsAdapter>
 				</Provider>
 				{/* App-wide toast portal — call toast() from anywhere */}
-				<Toaster position="bottom-right" richColors />
+				<Toaster position="top-center" />
 				<TanStackDevtools
 					config={{
 						position: "bottom-right",

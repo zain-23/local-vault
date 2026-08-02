@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 
 import { Button, Input, Label } from "#/components/ui";
 import { meQuery } from "#/features/auth/api";

@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 
 import { AUTH_KEYS, authService } from "#/features/auth/api";
 import type { ApiResponse } from "#/services/api";

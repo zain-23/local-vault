@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 
 import type { MemberRole } from "#/features/members/types";
 import { parseMemberRole } from "#/features/members/utils/canManageInvites.ts";

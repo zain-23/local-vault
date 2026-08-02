@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 
 import type { DeviceDecisionAction } from "#/features/device/api";
 import { DEVICE_KEYS, deviceService } from "#/features/device/api";

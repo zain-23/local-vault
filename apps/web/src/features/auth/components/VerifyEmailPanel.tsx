@@ -1,13 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { RefreshCw } from "lucide-react";
+import { ArrowRight, RefreshCw } from "lucide-react";
 import { useEffect } from "react";
 
-import {
-	Button,
-	ErrorMessage,
-	Spinner,
-	SuccessMessage,
-} from "#/components/ui/index.ts";
+import { Button, Spinner } from "#/components/ui/index.ts";
 import { useVerifyEmail } from "../hooks/useVerifyEmail.ts";
 import { AuthFooter } from "./AuthFooter.tsx";
 import { AuthHeading } from "./AuthHeading.tsx";
@@ -43,9 +38,23 @@ function VerifyEmailPanel({
 					</div>
 				)}
 
-				{isSuccess && <SuccessMessage title="Email verified" />}
+				{isSuccess && (
+					<Button asChild className="w-full">
+						<Link to="/auth/login">
+							Continue to login
+							<ArrowRight />
+						</Link>
+					</Button>
+				)}
 
-				{isError && <ErrorMessage title="Verification failed" />}
+				{isError && (
+					<Button asChild className="w-full">
+						<Link to="/auth/login">
+							Back to login
+							<ArrowRight />
+						</Link>
+					</Button>
+				)}
 			</>
 		);
 	}

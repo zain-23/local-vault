@@ -7,6 +7,7 @@ import type {
 	ResetPasswordInput,
 	SignupInput,
 	User,
+	Verify2FAInput,
 } from "./auth.types.ts";
 
 // One method per server route (server/internal/auth/routes.go). Generics are the
@@ -23,6 +24,11 @@ class AuthService {
 	// Resolves to the signed-in User (cookies set) OR a 2FA challenge.
 	login(input: LoginInput) {
 		return this.client.post<LoginResult>("/auth/login", input);
+	}
+
+	// Completes login after TOTP — cookies set on success, same as password login.
+	login2FA(input: Verify2FAInput) {
+		return this.client.post<User>("/auth/login/2fa", input);
 	}
 
 	// Refresh reads the refresh_token cookie server-side; no body needed.

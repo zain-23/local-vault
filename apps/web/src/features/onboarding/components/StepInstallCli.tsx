@@ -1,5 +1,3 @@
-import { Check } from "lucide-react";
-
 import {
 	Button,
 	Tabs,
@@ -39,7 +37,7 @@ function StepInstallCli({ onContinue }: { onContinue: () => void }) {
 				<Button variant="outline" className="flex-1" onClick={onContinue}>
 					Skip for now
 				</Button>
-				<Button className="flex-1" icon={Check} onClick={onContinue}>
+				<Button className="flex-1" onClick={onContinue}>
 					I've installed it
 				</Button>
 			</div>

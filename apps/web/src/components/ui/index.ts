@@ -15,7 +15,6 @@ export * from "./Separator";
 export * from "./Sheet";
 export * from "./Sidebar";
 export * from "./Skeleton";
-export * from "./Sonner";
 export * from "./Spinner";
 export * from "./StatusMessage";
 export * from "./Switch";

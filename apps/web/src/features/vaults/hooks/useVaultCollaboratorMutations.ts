@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 
 import { VAULT_KEYS, vaultService } from "#/features/vaults/api";
 import { useWorkspaceStore } from "#/stores";
