@@ -70,7 +70,9 @@ export class HttpClient implements ApiClient {
 	// Builds an absolute URL and appends defined query params.
 	private buildUrl(path: string, params?: RequestOptions["params"]): string {
 		if (!this.baseUrl) {
-			throw new Error("Api key is not configured");
+			throw new Error(
+				"VITE_API_URL is not configured. Set it in your environment and rebuild.",
+			);
 		}
 		const url = new URL(`${this.baseUrl}${path}`);
 		if (params) {

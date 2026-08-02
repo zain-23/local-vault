@@ -1,25 +1,26 @@
 {
-  "$schema": "https://turbo.build/schema.json",
-  "tasks": {
-    "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**"]
-    },
-    "dev": {
-      "cache": false,
-      "persistent": true
-    },
-    "lint": {
-      "dependsOn": ["^lint"]
-    },
-    "check": {
-      "dependsOn": ["^check"]
-    },
-    "format": {
-      "cache": false
-    },
-    "test": {
-      "dependsOn": ["^build"]
-    }
-  }
+	"$schema": "https://turbo.build/schema.json",
+	"tasks": {
+		"build": {
+			"dependsOn": ["^build"],
+			"outputs": ["dist/**", ".output/**"],
+			"env": ["VITE_API_URL"]
+		},
+		"dev": {
+			"cache": false,
+			"persistent": true
+		},
+		"lint": {
+			"dependsOn": ["^lint"]
+		},
+		"check": {
+			"dependsOn": ["^check"]
+		},
+		"format": {
+			"cache": false
+		},
+		"test": {
+			"dependsOn": ["^build"]
+		}
+	}
 }
