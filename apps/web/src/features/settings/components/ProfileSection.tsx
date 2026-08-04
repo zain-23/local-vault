@@ -103,7 +103,7 @@ function SectionHeader({
 }) {
 	return (
 		<div className="mb-2">
-			<h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
+			<h2 className="font-semibold tracking-tight">{title}</h2>
 			<p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
 		</div>
 	);

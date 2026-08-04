@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useLayoutEffect } from "react";
+import { AppBreadcrumb } from "#/components/layout/AppBreadcrumb.tsx";
 import { AppSidebar } from "#/components/layout/AppSidebar.tsx";
 import { GlobalModalProvider } from "#/components/shared/GlobalModalProvider.tsx";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "#/components/ui";
@@ -51,10 +52,9 @@ function AppLayout() {
 		<SidebarProvider>
 			<AppSidebar />
 			<SidebarInset>
-				{/* Slim bar for the sidebar toggle only — full top navbar is intentionally
-            skipped for now. */}
 				<header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
 					<SidebarTrigger />
+					<AppBreadcrumb />
 				</header>
 				<Outlet />
 			</SidebarInset>

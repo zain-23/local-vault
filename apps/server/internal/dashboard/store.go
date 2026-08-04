@@ -1,0 +1,201 @@
+package dashboard
+
+import (
+	"context"
+	"time"
+
+	"github.com/zain-23/local-vault/apps/server/internal/audit"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+)
+
+type Store struct {
+	vaults        *mongo.Collection
+	memberships   *mongo.Collection
+	invites       *mongo.Collection
+	collaborators *mongo.Collection
+	events        *mongo.Collection
+	users         *mongo.Collection
+}
+
+func NewStore(db *mongo.Database) *Store {
+	s := &Store{
+		vaults:        db.Collection("vaults"),
+		memberships:   db.Collection("memberships"),
+		invites:       db.Collection("workspace_invites"),
+		collaborators: db.Collection("vault_collaborators"),
+		events:        db.Collection("audit_events"),
+		users:         db.Collection("users"),
+	}
+
+	ctx := context.TODO()
+	// Speeds pending-collaborator counts by workspace (vault store indexes vault_id+status only).
+	s.collaborators.Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{{Key: "workspace_id", Value: 1}, {Key: "status", Value: 1}},
+	})
+
+	return s
+}
+
+// vaultAgg is the single-row result of the vaults summary aggregation.
+type vaultAgg struct {
+	Total        int64 `bson:"total"`
+	WithSnapshot int64 `bson:"with_snapshot"`
+	PeerTotal    int64 `bson:"peer_total"`
+}
+
+// SummaryCounts holds raw counts from Mongo for the summary endpoint.
+type SummaryCounts struct {
+	Vaults               vaultAgg
+	MemberTotal          int64
+	PendingInvites       int64
+	PendingCollaborators int64
+}
+
+// GetSummaryCounts loads workspace overview counts.
+func (s *Store) GetSummaryCounts(ctx context.Context, workspaceID string) (SummaryCounts, error) {
+	var out SummaryCounts
+
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{"workspace_id": workspaceID}}},
+		{{Key: "$group", Value: bson.M{
+			"_id":   nil,
+			"total": bson.M{"$sum": 1},
+			"with_snapshot": bson.M{"$sum": bson.M{
+				"$cond": bson.A{
+					bson.M{"$gt": bson.A{bson.M{"$binarySize": bson.M{"$ifNull": bson.A{"$snapshot", ""}}}, 0}},
+					1,
+					0,
+				},
+			}},
+			"peer_total": bson.M{"$sum": bson.M{
+				"$size": bson.M{"$ifNull": bson.A{"$peers", bson.A{}}},
+			}},
+		}}},
+	}
+	cursor, err := s.vaults.Aggregate(ctx, pipeline)
+	if err != nil {
+		return out, err
+	}
+	var rows []vaultAgg
+	if err := cursor.All(ctx, &rows); err != nil {
+		return out, err
+	}
+	if len(rows) > 0 {
+		out.Vaults = rows[0]
+	}
+
+	out.MemberTotal, err = s.memberships.CountDocuments(ctx, bson.M{"workspace_id": workspaceID})
+	if err != nil {
+		return out, err
+	}
+
+	out.PendingInvites, err = s.invites.CountDocuments(ctx, bson.M{
+		"workspace_id": workspaceID,
+		"status":       "pending",
+	})
+	if err != nil {
+		return out, err
+	}
+
+	out.PendingCollaborators, err = s.collaborators.CountDocuments(ctx, bson.M{
+		"workspace_id": workspaceID,
+		"status":       "pending",
+	})
+	if err != nil {
+		return out, err
+	}
+
+	return out, nil
+}
+
+// actorLookup joins each event to its actor's display name (copied from audit store).
+func actorLookup() mongo.Pipeline {
+	return mongo.Pipeline{
+		{{Key: "$lookup", Value: bson.M{
+			"from":         "users",
+			"localField":   "actor_id",
+			"foreignField": "_id",
+			"as":           "actor",
+		}}},
+		{{Key: "$unwind", Value: bson.M{"path": "$actor", "preserveNullAndEmptyArrays": true}}},
+		{{Key: "$addFields", Value: bson.M{"actor_name": "$actor.name"}}},
+		{{Key: "$project", Value: bson.M{"actor": 0}}},
+	}
+}
+
+// ListRecentEvents returns up to limit newest audit events since from (inclusive).
+func (s *Store) ListRecentEvents(ctx context.Context, workspaceID string, from time.Time, limit int64) ([]audit.EventResponse, error) {
+	pipeline := append(mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{
+			"workspace_id": workspaceID,
+			"created_at":   bson.M{"$gte": from},
+		}}},
+		{{Key: "$sort", Value: bson.D{{Key: "created_at", Value: -1}}}},
+		{{Key: "$limit", Value: limit}},
+	}, actorLookup()...)
+
+	cursor, err := s.events.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	var out []audit.EventResponse
+	if err := cursor.All(ctx, &out); err != nil {
+		return nil, err
+	}
+	if out == nil {
+		out = []audit.EventResponse{}
+	}
+	return out, nil
+}
+
+// seriesRow is one (day, prefix) group from the activity aggregation.
+type seriesRow struct {
+	ID struct {
+		Date   time.Time `bson:"date"`
+		Prefix string    `bson:"prefix"`
+	} `bson:"_id"`
+	Count int64 `bson:"count"`
+}
+
+// AggregateSeries returns per-day, per-action-prefix counts since from.
+func (s *Store) AggregateSeries(ctx context.Context, workspaceID string, from time.Time) ([]seriesRow, error) {
+	pipeline := mongo.Pipeline{
+		{{Key: "$match", Value: bson.M{
+			"workspace_id": workspaceID,
+			"created_at":   bson.M{"$gte": from},
+		}}},
+		{{Key: "$group", Value: bson.M{
+			"_id": bson.M{
+				"date": bson.M{
+					"$dateTrunc": bson.M{
+						"date":     "$created_at",
+						"unit":     "day",
+						"timezone": "UTC",
+					},
+				},
+				"prefix": bson.M{
+					"$arrayElemAt": bson.A{
+						bson.M{"$split": bson.A{"$action", "."}},
+						0,
+					},
+				},
+			},
+			"count": bson.M{"$sum": 1},
+		}}},
+		{{Key: "$sort", Value: bson.D{{Key: "_id.date", Value: 1}}}},
+	}
+
+	cursor, err := s.events.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	var rows []seriesRow
+	if err := cursor.All(ctx, &rows); err != nil {
+		return nil, err
+	}
+	if rows == nil {
+		rows = []seriesRow{}
+	}
+	return rows, nil
+}

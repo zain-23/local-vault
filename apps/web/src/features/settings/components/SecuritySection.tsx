@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import QRCode from "react-qr-code";
 import toast from "react-hot-toast";
+import QRCode from "react-qr-code";
 
 import { Badge, Button, Input, Label } from "#/components/ui";
 import { meQuery } from "#/features/auth/api";
@@ -94,7 +94,7 @@ export function SecuritySection() {
 	return (
 		<div>
 			<div className="mb-2">
-				<h2 className="text-[15px] font-semibold tracking-tight">Security</h2>
+				<h2 className="font-semibold tracking-tight">Security</h2>
 				<p className="mt-1 text-sm text-muted-foreground">
 					Password and two-factor authentication
 				</p>

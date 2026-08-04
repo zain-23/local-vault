@@ -24,7 +24,7 @@ export function SettingsPage() {
 				</p>
 			</div>
 
-			<div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-10">
+			<div className="flex flex-col gap-6 sm:flex-row sm:items-start">
 				<SettingsNav
 					value={section}
 					onChange={(next) => {
@@ -32,7 +32,7 @@ export function SettingsPage() {
 					}}
 				/>
 
-				<div className="min-w-0 flex-1">
+				<div className="flex-1 w-full">
 					<SettingsPanel section={section} />
 				</div>
 			</div>
