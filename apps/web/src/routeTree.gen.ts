@@ -18,6 +18,7 @@ import { Route as WorkspacesRouteRouteImport } from './routes/workspaces/route'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppMembersRouteImport } from './routes/_app/members'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppVaultsRouteImport } from './routes/_app/vaults'
 import { Route as AuthCheckEmailRouteImport } from './routes/auth/check-email'
 import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
@@ -75,6 +76,11 @@ const AppMembersRoute = AppMembersRouteImport.update({
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVaultsRoute = AppVaultsRouteImport.update({
+  id: '/vaults',
+  path: '/vaults',
   getParentRoute: () => AppRoute,
 } as any)
 const AuthCheckEmailRoute = AuthCheckEmailRouteImport.update({
@@ -138,14 +144,14 @@ const WorkspacesJoinRoute = WorkspacesJoinRouteImport.update({
   getParentRoute: () => WorkspacesRouteRoute,
 } as any)
 const AppVaultsIndexRoute = AppVaultsIndexRouteImport.update({
-  id: '/vaults/',
-  path: '/vaults/',
-  getParentRoute: () => AppRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppVaultsRoute,
 } as any)
 const AppVaultsVaultIdRoute = AppVaultsVaultIdRouteImport.update({
-  id: '/vaults/$vaultId',
-  path: '/vaults/$vaultId',
-  getParentRoute: () => AppRoute,
+  id: '/$vaultId',
+  path: '/$vaultId',
+  getParentRoute: () => AppVaultsRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -157,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/audit': typeof AppAuditRoute
   '/members': typeof AppMembersRoute
   '/settings': typeof AppSettingsRoute
+  '/vaults': typeof AppVaultsRouteWithChildren
   '/auth/check-email': typeof AuthCheckEmailRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
@@ -206,6 +213,7 @@ export interface FileRoutesById {
   '/_app/audit': typeof AppAuditRoute
   '/_app/members': typeof AppMembersRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/vaults': typeof AppVaultsRouteWithChildren
   '/auth/check-email': typeof AuthCheckEmailRoute
   '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
@@ -232,6 +240,7 @@ export interface FileRouteTypes {
     | '/audit'
     | '/members'
     | '/settings'
+    | '/vaults'
     | '/auth/check-email'
     | '/auth/forgot-password'
     | '/auth/login'
@@ -280,6 +289,7 @@ export interface FileRouteTypes {
     | '/_app/audit'
     | '/_app/members'
     | '/_app/settings'
+    | '/_app/vaults'
     | '/auth/check-email'
     | '/auth/forgot-password'
     | '/auth/login'
@@ -370,6 +380,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/vaults': {
+      id: '/_app/vaults'
+      path: '/vaults'
+      fullPath: '/vaults'
+      preLoaderRoute: typeof AppVaultsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/auth/check-email': {
       id: '/auth/check-email'
       path: '/check-email'
@@ -456,17 +473,17 @@ declare module '@tanstack/react-router' {
     }
     '/_app/vaults/': {
       id: '/_app/vaults/'
-      path: '/vaults'
+      path: '/'
       fullPath: '/vaults/'
       preLoaderRoute: typeof AppVaultsIndexRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppVaultsRoute
     }
     '/_app/vaults/$vaultId': {
       id: '/_app/vaults/$vaultId'
-      path: '/vaults/$vaultId'
+      path: '/$vaultId'
       fullPath: '/vaults/$vaultId'
       preLoaderRoute: typeof AppVaultsVaultIdRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppVaultsRoute
     }
   }
 }
@@ -525,20 +542,32 @@ const WorkspacesRouteRouteWithChildren = WorkspacesRouteRoute._addFileChildren(
   WorkspacesRouteRouteChildren,
 )
 
+interface AppVaultsRouteChildren {
+  AppVaultsVaultIdRoute: typeof AppVaultsVaultIdRoute
+  AppVaultsIndexRoute: typeof AppVaultsIndexRoute
+}
+
+const AppVaultsRouteChildren: AppVaultsRouteChildren = {
+  AppVaultsVaultIdRoute: AppVaultsVaultIdRoute,
+  AppVaultsIndexRoute: AppVaultsIndexRoute,
+}
+
+const AppVaultsRouteWithChildren = AppVaultsRoute._addFileChildren(
+  AppVaultsRouteChildren,
+)
+
 interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
   AppMembersRoute: typeof AppMembersRoute
   AppSettingsRoute: typeof AppSettingsRoute
-  AppVaultsVaultIdRoute: typeof AppVaultsVaultIdRoute
-  AppVaultsIndexRoute: typeof AppVaultsIndexRoute
+  AppVaultsRoute: typeof AppVaultsRouteWithChildren
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
   AppMembersRoute: AppMembersRoute,
   AppSettingsRoute: AppSettingsRoute,
-  AppVaultsVaultIdRoute: AppVaultsVaultIdRoute,
-  AppVaultsIndexRoute: AppVaultsIndexRoute,
+  AppVaultsRoute: AppVaultsRouteWithChildren,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
