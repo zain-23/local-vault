@@ -19,6 +19,7 @@ import (
 	"github.com/zain-23/local-vault/apps/server/internal/common/jwt"
 	"github.com/zain-23/local-vault/apps/server/internal/common/middleware"
 	"github.com/zain-23/local-vault/apps/server/internal/config"
+	"github.com/zain-23/local-vault/apps/server/internal/dashboard"
 	"github.com/zain-23/local-vault/apps/server/internal/device"
 	"github.com/zain-23/local-vault/apps/server/internal/email"
 	"github.com/zain-23/local-vault/apps/server/internal/member"
@@ -30,10 +31,10 @@ const serverVersion = "3.0.0"
 
 // App holds the Fiber app and database — the single object main.go runs
 type App struct {
-	Fiber 		*fiber.App
-	DB    		*mongo.Database
-	Publisher	*email.Publisher
-	JWTService	*jwt.Service
+	Fiber      *fiber.App
+	DB         *mongo.Database
+	Publisher  *email.Publisher
+	JWTService *jwt.Service
 }
 
 // New connects to MongoDB, configures Fiber with middleware, and registers health endpoint
@@ -117,12 +118,10 @@ func New(cfg config.Config) (*App, error) {
 	oauthHandler := auth.NewOAuthHandler(authService, cfg)
 	// Register all auth routes on the fiber app
 	auth.RegisterRoutes(app, authHandler, oauthHandler, authMW)
-	
 
 	// ------------ Audit (built first — every domain records through it) ----------
 	auditStore := audit.NewStore(db)
 	auditService := audit.NewService(auditStore)
-
 
 	// ------------ Wire Workspace domain ----------
 	// workspace domain: store -> service -> handler
@@ -138,7 +137,6 @@ func New(cfg config.Config) (*App, error) {
 	// store is passed too — RequireRole uses it to look up the caller's role.
 	member.RegisterRoutes(app, memberHandler, memberStore, authMW)
 
-
 	// ------------ Wire Device domain ----------
 	// Depends on authService (mints the CLI's session — one source of truth for
 	// tokens) and memberStore (verifies the approver belongs to the workspace).
@@ -147,19 +145,23 @@ func New(cfg config.Config) (*App, error) {
 	deviceHandler := device.NewHandler(deviceService)
 	device.RegisterRoutes(app, deviceHandler, authMW)
 
-
 	// ------------ Wire Vault domain ----------
 	// Reuses wsStore as the RequireRole membership checker (RoleOf).
 	vaultStore := vault.NewStore(db)
 	vaultService := vault.NewService(vaultStore, auditService, memberDirectory{store: memberStore}, publisher, cfg)
 	vaultHandler := vault.NewHandler(vaultService)
 	vault.RegisterRoutes(app, vaultHandler, wsStore, authMW)
-	
+
 	// ------------ Wire Audit domain (read side) ----------
 	auditHandler := audit.NewHandler(auditService)
 	audit.RegisterRoutes(app, auditHandler, wsStore, authMW)
-	
-	
+
+	// ------------ Wire Dashboard domain ----------
+	dashStore := dashboard.NewStore(db)
+	dashService := dashboard.NewService(dashStore)
+	dashHandler := dashboard.NewHandler(dashService)
+	dashboard.RegisterRoutes(app, dashHandler, wsStore, authMW)
+
 	// ------------ Wire Account domain ----------
 	// Own store over the shared users/sessions collections; records account events.
 	accountStore := account.NewStore(db)

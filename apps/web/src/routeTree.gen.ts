@@ -16,6 +16,7 @@ import { Route as DeviceRouteRouteImport } from './routes/device/route'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as WorkspacesRouteRouteImport } from './routes/workspaces/route'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
+import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppMembersRouteImport } from './routes/_app/members'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppVaultsRouteImport } from './routes/_app/vaults'
@@ -66,6 +67,11 @@ const WorkspacesRouteRoute = WorkspacesRouteRouteImport.update({
 const AppAuditRoute = AppAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMembersRoute = AppMembersRouteImport.update({
@@ -161,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/workspaces': typeof WorkspacesRouteRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/audit': typeof AppAuditRoute
+  '/dashboard': typeof AppDashboardRoute
   '/members': typeof AppMembersRoute
   '/settings': typeof AppSettingsRoute
   '/vaults': typeof AppVaultsRouteWithChildren
@@ -185,6 +192,7 @@ export interface FileRoutesByTo {
   '/workspaces': typeof WorkspacesRouteRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/audit': typeof AppAuditRoute
+  '/dashboard': typeof AppDashboardRoute
   '/members': typeof AppMembersRoute
   '/settings': typeof AppSettingsRoute
   '/auth/check-email': typeof AuthCheckEmailRoute
@@ -211,6 +219,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/_app/audit': typeof AppAuditRoute
+  '/_app/dashboard': typeof AppDashboardRoute
   '/_app/members': typeof AppMembersRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/vaults': typeof AppVaultsRouteWithChildren
@@ -238,6 +247,7 @@ export interface FileRouteTypes {
     | '/workspaces'
     | '/onboarding'
     | '/audit'
+    | '/dashboard'
     | '/members'
     | '/settings'
     | '/vaults'
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/workspaces'
     | '/onboarding'
     | '/audit'
+    | '/dashboard'
     | '/members'
     | '/settings'
     | '/auth/check-email'
@@ -287,6 +298,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/onboarding'
     | '/_app/audit'
+    | '/_app/dashboard'
     | '/_app/members'
     | '/_app/settings'
     | '/_app/vaults'
@@ -364,6 +376,13 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/audit'
       preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/members': {
@@ -558,6 +577,7 @@ const AppVaultsRouteWithChildren = AppVaultsRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAuditRoute: typeof AppAuditRoute
+  AppDashboardRoute: typeof AppDashboardRoute
   AppMembersRoute: typeof AppMembersRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppVaultsRoute: typeof AppVaultsRouteWithChildren
@@ -565,6 +585,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAuditRoute: AppAuditRoute,
+  AppDashboardRoute: AppDashboardRoute,
   AppMembersRoute: AppMembersRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppVaultsRoute: AppVaultsRouteWithChildren,

@@ -30,7 +30,7 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-	{ title: "Dashboard", icon: LayoutDashboard },
+	{ title: "Dashboard", icon: LayoutDashboard, to: "/dashboard" },
 	{ title: "Vaults", icon: Vault, to: "/vaults" },
 	{ title: "Members", icon: Users, to: "/members" },
 	{ title: "Audit log", icon: ScrollText, to: "/audit" },
