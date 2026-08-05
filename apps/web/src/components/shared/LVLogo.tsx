@@ -57,7 +57,7 @@ function LVLogo({
 					className="font-semibold tracking-tight"
 					style={{ fontSize: size * 0.78 }}
 				>
-					LocalVault
+					Local<span className="text-primary">Vault</span>
 				</span>
 			)}
 		</span>
