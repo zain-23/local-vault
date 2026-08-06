@@ -1,8 +1,8 @@
 import { Github, Link2, Lock } from "lucide-react";
 
+import { LaserGrid } from "#/components/shared/LaserGrid.tsx";
 import { LVLogo } from "#/components/shared/LVLogo.tsx";
 import { BrandTerminal } from "./BrandTerminal.tsx";
-import { LaserGrid } from "./LaserGrid.tsx";
 
 // Trust chips shown under the terminal signature.
 const CHIPS = [

@@ -73,7 +73,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	const { queryClient } = Route.useRouteContext();
 
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html lang="en" className="scroll-smooth" suppressHydrationWarning>
 			<head>
 				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: static theme boot script, not user content */}
 				<script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
