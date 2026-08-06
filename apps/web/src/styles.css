@@ -195,3 +195,47 @@ body,
     color: var(--foreground);
   }
 }
+
+/* Auth brand panel — Laser Grid lane riders */
+@keyframes laser-x {
+  from {
+    transform: translateX(calc(-1 * var(--laser-length)));
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes laser-x-rev {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(calc(-1 * var(--laser-length)));
+  }
+}
+
+@keyframes laser-y {
+  from {
+    transform: translateY(calc(-1 * var(--laser-length)));
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes laser-y-rev {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(calc(-1 * var(--laser-length)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .laser-beam {
+    animation: none !important;
+    opacity: 0;
+  }
+}

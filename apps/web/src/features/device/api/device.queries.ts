@@ -7,13 +7,13 @@ import { DEVICE_KEYS, deviceService } from "#/features/device/api";
 // code) is a real answer, not a transient failure worth retrying. staleTime:0 —
 // we always want the current status when the screen (re)mounts.
 export function approvalDetailsQuery(userCode: string) {
-  return queryOptions({
-    queryKey: DEVICE_KEYS.approval(userCode),
-    queryFn: async () => {
-      const res = await deviceService.approvalDetails(userCode);
-      return res.data;
-    },
-    retry: false,
-    staleTime: 0,
-  });
+	return queryOptions({
+		queryKey: DEVICE_KEYS.approval(userCode),
+		queryFn: async () => {
+			const res = await deviceService.approvalDetails(userCode);
+			return res.data;
+		},
+		retry: false,
+		staleTime: 0,
+	});
 }

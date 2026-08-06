@@ -11,11 +11,13 @@ function OtpField({
 	value,
 	onChange,
 	onComplete,
+	disabled,
 	"aria-invalid": ariaInvalid,
 }: {
 	value: string;
 	onChange: (value: string) => void;
 	onComplete?: (value: string) => void;
+	disabled?: boolean;
 	"aria-invalid"?: boolean;
 }) {
 	return (
@@ -24,6 +26,7 @@ function OtpField({
 			value={value}
 			onChange={onChange}
 			onComplete={onComplete}
+			disabled={disabled}
 			containerClassName="justify-between gap-2"
 		>
 			<InputOTPGroup className="w-full gap-2">

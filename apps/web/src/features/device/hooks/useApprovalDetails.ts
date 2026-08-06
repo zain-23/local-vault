@@ -7,8 +7,8 @@ import { approvalDetailsQuery } from "#/features/device/api";
 // URL carries no code — there's nothing to look up, and the route sends
 // unauthenticated visitors to login before this ever runs.
 export function useApprovalDetails(userCode: string | undefined) {
-  return useQuery({
-    ...approvalDetailsQuery(userCode ?? ""),
-    enabled: !!userCode,
-  });
+	return useQuery({
+		...approvalDetailsQuery(userCode ?? ""),
+		enabled: !!userCode,
+	});
 }

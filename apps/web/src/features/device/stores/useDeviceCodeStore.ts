@@ -1,9 +1,9 @@
 import { create } from "zustand";
 
 interface DeviceCodeState {
-  userCode: string | null;
-  setUserCode: (code: string) => void;
-  clear: () => void;
+	userCode: string | null;
+	setUserCode: (code: string) => void;
+	clear: () => void;
 }
 
 // Holds the user code between the submit step and the approval screen, so it
@@ -12,7 +12,7 @@ interface DeviceCodeState {
 // screen falls back to "no code" and the user re-enters it from their terminal.
 // It survives client-side navigation, so the login redirect round-trip is fine.
 export const useDeviceCodeStore = create<DeviceCodeState>((set) => ({
-  userCode: null,
-  setUserCode: (code) => set({ userCode: code }),
-  clear: () => set({ userCode: null }),
+	userCode: null,
+	setUserCode: (code) => set({ userCode: code }),
+	clear: () => set({ userCode: null }),
 }));

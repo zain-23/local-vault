@@ -1,28 +1,18 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
-
-import { meQuery } from "#/features/auth/api";
+import { createFileRoute } from "@tanstack/react-router";
+import { PAGE_META } from "#/constants";
 import { ApprovalScreen } from "#/features/device/components/index.ts";
 import { useDeviceCodeStore } from "#/features/device/stores/useDeviceCodeStore.ts";
+import { seo } from "#/utils/seo.ts";
 
-// /device/confirmation — the approval step. The code isn't in the URL; it's held
-// in a store set by the submit step, so a refresh drops it and the screen shows
-// "no code". Approving links the device to *this* account, so the reviewer must
-// be signed in: if they aren't, we bounce to login and back here (a client-side
-// round-trip, so the in-memory code survives).
+// /device/confirmation — the approval step. Auth is on the /device layout.
+// The code isn't in the URL; it's held in a store set by the submit step, so a
+// refresh drops it and the screen shows "no code".
 export const Route = createFileRoute("/device/confirmation")({
-  beforeLoad: async ({ context, location }) => {
-    const user = await context.queryClient.ensureQueryData(meQuery);
-    if (!user) {
-      throw redirect({
-        to: "/auth/login",
-        search: { redirect: location.href },
-      });
-    }
-  },
-  component: ApprovalPage,
+	head: () => seo(PAGE_META["/device/confirmation"]),
+	component: ApprovalPage,
 });
 
 function ApprovalPage() {
-  const userCode = useDeviceCodeStore((s) => s.userCode);
-  return <ApprovalScreen userCode={userCode ?? undefined} />;
+	const userCode = useDeviceCodeStore((s) => s.userCode);
+	return <ApprovalScreen userCode={userCode ?? undefined} />;
 }

@@ -4,9 +4,9 @@ import { auditEventsQuery } from "#/features/audit/api";
 import { useWorkspaceStore } from "#/stores";
 
 export function useAuditEvents(params: ListAuditParams = {}) {
-  const workspaceId = useWorkspaceStore((s) => s.active?.id);
-  return useQuery({
-    ...auditEventsQuery(workspaceId ?? "", params),
-    enabled: !!workspaceId,
-  });
+	const workspaceId = useWorkspaceStore((s) => s.active?.id);
+	return useQuery({
+		...auditEventsQuery(workspaceId ?? "", params),
+		enabled: !!workspaceId,
+	});
 }

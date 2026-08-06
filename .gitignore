@@ -1,5 +1,20 @@
+# Secrets / local junk
 .env
 branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
 .gitignore
+docs
+local-vault-design
+.superpowers
+
+# Monorepo / tooling
+node_modules
+.turbo
+lv
+*.exe
+
+# JS app artifacts (also listed in apps/web/.gitignore)
+dist
+.DS_Store
+.output

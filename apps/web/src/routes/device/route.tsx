@@ -1,17 +1,29 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { FocusedLayout } from "#/components/shared";
+import { meQuery } from "#/features/auth/api";
 
-// Layout route for the CLI device flow (/device/*). UI only for now — no auth
-// guard; the shared focused card renders once here around each step.
+// Layout route for the CLI device flow (/device/*). Auth required — approving
+// a device ties it to *this* account. Preserve the full URL through login so
+// ?user_code=… survives the round-trip.
 export const Route = createFileRoute("/device")({
-  component: DeviceRoute,
+	ssr: false,
+	beforeLoad: async ({ context, location }) => {
+		const user = await context.queryClient.ensureQueryData(meQuery);
+		if (!user) {
+			throw redirect({
+				to: "/auth/login",
+				search: { redirect: location.href },
+			});
+		}
+	},
+	component: DeviceRoute,
 });
 
 function DeviceRoute() {
-  return (
-    <FocusedLayout>
-      <Outlet />
-    </FocusedLayout>
-  );
+	return (
+		<FocusedLayout>
+			<Outlet />
+		</FocusedLayout>
+	);
 }
