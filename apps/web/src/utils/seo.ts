@@ -15,7 +15,9 @@ type MetaTag = React.JSX.IntrinsicElements["meta"] & { property?: string };
 type LinkTag = React.JSX.IntrinsicElements["link"];
 
 const absolute = (pathOrUrl: string) =>
-	pathOrUrl.startsWith("http") ? pathOrUrl : `${SITE_URL}${pathOrUrl}`;
+	/^https?:\/\//.test(pathOrUrl)
+ 		? pathOrUrl
+ 		: `${SITE_URL}${pathOrUrl.startsWith("/") ? "" : "/"}${pathOrUrl}`;
 
 /**
  * Builds the `head()` payload for a route: title, description, robots,

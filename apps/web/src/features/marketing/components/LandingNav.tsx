@@ -20,7 +20,8 @@ function LandingNav() {
 
 	// setState only on the crossing, not on every scroll frame.
 	useMotionValueEvent(scrollY, "change", (y) => {
-		setStuck(y > STUCK_AFTER_PX);
+		const next = y > STUCK_AFTER_PX;
+		setStuck((prev) => (prev === next ? prev : next));
 	});
 
 	return (

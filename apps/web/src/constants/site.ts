@@ -1,5 +1,5 @@
 /** Canonical public origin for absolute meta URLs (og:image, etc.). */
-export const SITE_URL = import.meta.env.VITE_SITE_URL || "http://localhost:3000";
+export const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://localvault.dev").replace(/\/+$/, "");
 
 export const SITE_NAME = "LocalVault";
 
