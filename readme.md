@@ -1,45 +1,64 @@
-<div align="center">
+<p align="center">
+  <img src="apps/web/public/og.jpg" alt="LocalVault — Secrets that never leave your machine" width="920" />
+</p>
 
-<br/>
+<p align="center">
+  <strong>Encrypted secret sync for dev teams.</strong><br/>
+  Zero-knowledge · Peer sync · Replaces <code>.env</code> files
+</p>
 
-# 🔐 LocalVault
-
-**Encrypted secret sync for dev teams.**
-**No cloud. No leaks. Pure P2P.**
-
-> Replace `.env` files with an encrypted vault that syncs directly
-> between developer machines. Your secrets never touch a server in readable form.
-
-<br/>
-
-</div>
+<p align="center">
+  <a href="https://github.com/zain-23/local-vault/releases/latest"><img src="https://img.shields.io/github/v/release/zain-23/local-vault?style=flat-square&label=latest" alt="Latest release" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/zain-23/local-vault?style=flat-square" alt="MIT License" /></a>
+  <a href="https://github.com/zain-23/local-vault/releases"><img src="https://img.shields.io/github/downloads/zain-23/local-vault/total?style=flat-square" alt="Downloads" /></a>
+</p>
 
 ---
 
 ## Install
 
-Prebuilt binaries are published to [GitHub Releases](https://github.com/zain-23/local-vault/releases) for Linux, macOS, and Windows.
+Prebuilt `lv` binaries ship on every [GitHub Release](https://github.com/zain-23/local-vault/releases/latest) for Linux, macOS, and Windows.
 
-**Linux / macOS** — download the right archive, extract, and install:
+### Linux / macOS
+
+Pick the archive for your platform, extract `lv`, and put it on your `PATH`:
+
+| Platform | Archive |
+| -------- | ------- |
+| Linux x86_64 | [`lv_linux_amd64.tar.gz`](https://github.com/zain-23/local-vault/releases/latest/download/lv_linux_amd64.tar.gz) |
+| Linux ARM64 | [`lv_linux_arm64.tar.gz`](https://github.com/zain-23/local-vault/releases/latest/download/lv_linux_arm64.tar.gz) |
+| macOS Intel | [`lv_darwin_amd64.tar.gz`](https://github.com/zain-23/local-vault/releases/latest/download/lv_darwin_amd64.tar.gz) |
+| macOS Apple Silicon | [`lv_darwin_arm64.tar.gz`](https://github.com/zain-23/local-vault/releases/latest/download/lv_darwin_arm64.tar.gz) |
 
 ```bash
-# pick your platform: linux_amd64 · linux_arm64 · darwin_amd64 · darwin_arm64
+# Example: Linux amd64
 curl -fsSL https://github.com/zain-23/local-vault/releases/latest/download/lv_linux_amd64.tar.gz \
   | tar -xz lv
 sudo mv lv /usr/local/bin/lv
+lv --help
 ```
 
-**Windows** — download `lv_windows_amd64.zip` from the
-[latest release](https://github.com/zain-23/local-vault/releases/latest),
-unzip, and add `lv.exe` to your `PATH`.
+```bash
+# Example: macOS Apple Silicon
+curl -fsSL https://github.com/zain-23/local-vault/releases/latest/download/lv_darwin_arm64.tar.gz \
+  | tar -xz lv
+sudo mv lv /usr/local/bin/lv
+lv --help
+```
 
-**With Go**
+### Windows
+
+1. Download [`lv_windows_amd64.zip`](https://github.com/zain-23/local-vault/releases/latest/download/lv_windows_amd64.zip) (or `lv_windows_arm64.zip`).
+2. Unzip and add `lv.exe` to your `PATH`.
+3. Open a new terminal and run `lv --help`.
+
+### With Go
 
 ```bash
 go install github.com/zain-23/local-vault@latest
 ```
 
-**From source**
+### From source
 
 ```bash
 git clone https://github.com/zain-23/local-vault
@@ -49,127 +68,88 @@ go build -o lv ./apps/cli
 sudo mv lv /usr/local/bin/lv
 ```
 
-> The release binaries default to the hosted server. To point `lv` at a
-> different server, set `SERVER_URL`, e.g. `export SERVER_URL=https://your-server`.
+> Release binaries default to the hosted API. Point `lv` at another server with:
+> `export SERVER_URL=https://your-server`
 
 ---
 
-## Quick Start
+## Quick start
 
 ```bash
-# Initialize vault in your project
+# Sign in (device login in the browser)
+lv login
+
+# Create a vault in your project
 cd my-project
 lv init
-
-# Unlock once per day — no prompts after this
 lv unlock
 
 # Add secrets
 lv add DATABASE_URL=postgres://localhost/mydb
 lv add API_KEY=sk-live-xxx
 lv add STRIPE_KEY=sk_live_xxx --env production
-lv add STRIPE_KEY=sk_test_xxx --env development
 
-# Run your project with secrets injected
+# Run your app with secrets injected
 lv inject -- npm run dev
 
-# Import existing .env file
+# Import an existing .env
 lv import .env.local
 ```
 
 ---
 
-## Session Management
+## Session management
 
-LocalVault asks for your passphrase **once per day**. After that every command works without any prompt — like SSH agent.
+Unlock once; then commands run without re-prompting (like an SSH agent).
 
 ```bash
-# Unlock once
-lv unlock
-# ✅ Unlocked for 12 hours
-
-# All commands work silently
-lv list
-lv add KEY=value
-lv push
-lv sync
-
-# Lock when done
-lv lock
-
-# Lock all projects at once
-lv lock --all
+lv unlock          # unlock for ~12 hours
+lv list            # no passphrase prompt
+lv lock            # lock this project
+lv lock --all      # lock every project
 ```
 
-> Each project has its own independent session. Unlocking one project never affects another.
+Each project has its own session. Unlocking one never unlocks another.
 
 ---
 
-## Team Sync
+## Team sync
 
 ```bash
-# ── Dev A ──────────────────────────────────────────
-
-lv invite
-# ⏳ Waiting for teammate to join...
-# 🎉 Teammate joined!
-# Now run: lv push
+# ── Owner ──────────────────────────────────────────
+lv invite teammate@company.com
+# invite email sent with join code
 
 lv push
-# ✅ Sent to ahmed-laptop
+# encrypted snapshot sent to peers
 
 
-# ── Dev B ──────────────────────────────────────────
-
-lv join LV-A3F9-X2K1
-# ✅ Connected to peer
-
+# ── Teammate ───────────────────────────────────────
+lv login
+lv join ABCD-1234
 lv sync
-# ✅ Received 3 secret(s)
-
-lv inject -- npm run dev  # ✅ all secrets loaded
+lv inject -- npm run dev
 ```
 
-**Works from anywhere.** Different offices, different cities, different networks — the signaling server bridges peers securely. If Dev B is offline when Dev A pushes, messages are stored for 48 hours and delivered when they come online.
+Peers can be anywhere — offices, cities, networks. Offline teammates get queued messages (held briefly) and receive them when they come online.
+
+```bash
+lv invite --list                 # pending invites & collaborators
+lv invite --revoke sara@co.com   # revoke a pending invite
+lv peers                         # who has vault access
+lv revoke <device-id>            # remove a peer
+lv rotate --all                  # rotate after a revoke
+```
 
 ---
 
-## Secret Rotation
+## Secret rotation
 
 ```bash
-# Rotate single key
 lv rotate API_KEY
-# New value: ••••••••
-# ✅ API_KEY rotated
-# 📤 All peers notified
-
-# Rotate multiple keys
 lv rotate API_KEY STRIPE_KEY DATABASE_URL
-
-# Open all secrets in editor — change only what you want
 lv rotate --all
-
-# Rotate specific environment
 lv rotate --all --env production
-```
-
----
-
-## Peer Management
-
-```bash
-# See who has access
-lv peers
-# 👥 Trusted Peers
-#   Peer 1 — ahmed-laptop   (b427d8d8...)
-#   Peer 2 — sara-macbook   (c891f2a1...)
-
-# Remove a peer
-lv revoke b427d8d8-8b7f-4605-9b5a-f8be956b168d
-# ✅ Revoked access for ahmed-laptop
-
-# Rotate after revoking so cached copy is useless
-lv rotate --all
 ```
 
 ---
@@ -178,62 +158,47 @@ lv rotate --all
 
 ```
 Passphrase → Argon2id → AES-256-GCM → vault.json.enc
+X25519 ECDH → shared secret → AES-256-GCM → encrypted blob
 ```
 
-```
-X25519 Key Exchange → Shared Secret → AES-256-GCM → Encrypted blob
-```
-
-| Layer             | Algorithm   |
-| ----------------- | ----------- |
-| Vault encryption  | AES-256-GCM |
-| Key derivation    | Argon2id    |
+| Layer | Algorithm |
+| ----- | --------- |
+| Vault encryption | AES-256-GCM |
+| Key derivation | Argon2id |
 | Peer key exchange | X25519 ECDH |
-| Device identity   | Ed25519     |
-| Session cache     | OS Keychain |
+| Device identity | Ed25519 |
+| Session cache | OS keychain |
 
-**What the signaling server sees:**
+**The signaling server sees:** encrypted blobs, device IDs, and IPs for discovery.
 
-- Encrypted blobs — cannot read
-- Random device IDs — not linked to identity
-- IP addresses — only for peer discovery
-
-**What never leaves your machine unencrypted:**
-
-- Your secrets
-- Your passphrase
-- Your private keys
+**Never leaves your machine in plaintext:** secrets, passphrase, private keys.
 
 ---
 
-## All Commands
+## Commands
 
-| Command                             | Description                   |
-| ----------------------------------- | ----------------------------- |
-| `lv init`                           | Initialize encrypted vault    |
-| `lv unlock`                         | Unlock for 12 hours           |
-| `lv lock`                           | Lock current project          |
-| `lv lock --all`                     | Lock all projects             |
-| `lv add KEY=VALUE`                  | Add or update a secret        |
-| `lv add KEY=VALUE --env production` | Add to specific environment   |
-| `lv get KEY`                        | Get value of a secret         |
-| `lv list`                           | List all secrets              |
-| `lv list --env staging`             | Filter by environment         |
-| `lv remove KEY`                     | Delete a secret               |
-| `lv import FILE`                    | Import from `.env` file       |
-| `lv inject -- CMD`                  | Run command with secrets      |
-| `lv inject --env production -- CMD` | Run with environment secrets  |
-| `lv invite`                         | Generate teammate invite code |
-| `lv join CODE`                      | Join teammate vault           |
-| `lv push`                           | Push secrets to all peers     |
-| `lv sync`                           | Pull secrets from peers       |
-| `lv peers`                          | List trusted peers            |
-| `lv rotate KEY`                     | Rotate a secret               |
-| `lv rotate --all`                   | Rotate all in editor          |
-| `lv revoke DEVICE_ID`               | Remove peer access            |
-| `lv status`                         | Show vault health             |
-| `lv log`                            | Show audit trail              |
-| `lv whoami`                         | Show device identity          |
+| Command | Description |
+| ------- | ----------- |
+| `lv login` / `lv logout` | Device auth session |
+| `lv whoami` | Show signed-in identity |
+| `lv init` | Create encrypted vault |
+| `lv unlock` / `lv lock` | Session unlock / lock |
+| `lv add KEY=VALUE` | Add or update a secret |
+| `lv get KEY` | Print a secret value |
+| `lv list` | List secrets |
+| `lv remove KEY` | Delete a secret |
+| `lv import FILE` | Import from `.env` |
+| `lv inject -- CMD` | Run a command with secrets |
+| `lv invite EMAIL` | Email invite with join code |
+| `lv join CODE` | Join with invite code |
+| `lv push` / `lv sync` | Push / pull encrypted snapshot |
+| `lv peers` | List trusted peers |
+| `lv revoke DEVICE_ID` | Remove peer access |
+| `lv rotate KEY` | Rotate secret(s) |
+| `lv status` | Vault health |
+| `lv log` | Local audit trail |
+
+Flags like `--env production` work on add, list, inject, rotate, and import.
 
 ---
 
@@ -248,59 +213,56 @@ lv import .env.production --env production
 {
   "scripts": {
     "dev": "lv inject --env development -- next dev",
-    "build": "lv inject --env production  -- next build",
-    "start": "lv inject --env production  -- next start"
+    "build": "lv inject --env production -- next build",
+    "start": "lv inject --env production -- next start"
   }
 }
 ```
 
-Your app code stays exactly the same — `process.env.KEY` works as always.
+App code stays the same — `process.env.KEY` works as usual.
 
 ---
 
 ## Monorepo development
 
-This repo is a pnpm + Turborepo monorepo with Go apps orchestrated via [Task](https://taskfile.dev):
-
 ```text
-apps/cli      Go CLI (`lv`)
-apps/server   Go API + worker
+apps/cli      Go CLI (lv)
+apps/server   Go API + email worker
 apps/web      React web app
 packages/     Shared TypeScript packages
 ```
 
 ```bash
-pnpm install          # JS workspaces
-pnpm dev              # web (Turbo)
-pnpm build            # all JS packages
-pnpm lint / test      # JS lint & tests
+pnpm install
+pnpm dev              # web
+pnpm build
+pnpm lint / test
 
-task cli:build        # build lv
-task server:run       # run API
-task test:go          # go test ./...
-task docker:server    # Docker image for API
+task cli:build
+task server:run
+task test:go
 ```
 
 Requires [pnpm](https://pnpm.io), [Go](https://go.dev), and optionally [Task](https://taskfile.dev).
 
 ---
 
-## What Gets Committed to Git
+## What gets committed
 
-```
-.lv/identity.pub     ✅  safe to commit
-.lv/vault.json.enc   ❌  gitignored automatically
-.lv/identity.key     ❌  gitignored automatically
-.lv/identity.json    ❌  gitignored automatically
-```
+| Path | Commit? |
+| ---- | ------- |
+| `.lv/identity.pub` | Yes — safe |
+| `.lv/vault.json.enc` | No — gitignored |
+| `.lv/identity.key` | No — gitignored |
+| `.lv/identity.json` | No — gitignored |
 
 ---
 
-<div align="center">
-<br/>
-
-_Stop sharing secrets over Slack._
-
-[Report Bug](https://github.com/zain-23/local-vault/issues) · [Request Feature](https://github.com/zain-23/local-vault/issues)
-
-</div>
+<p align="center">
+  <em>Stop sharing secrets over Slack.</em><br/><br/>
+  <a href="https://github.com/zain-23/local-vault/issues">Report a bug</a>
+  ·
+  <a href="https://github.com/zain-23/local-vault/issues">Request a feature</a>
+  ·
+  <a href="https://github.com/zain-23/local-vault/releases/latest">Download latest</a>
+</p>
