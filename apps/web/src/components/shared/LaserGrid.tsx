@@ -1,5 +1,6 @@
-import type { Laser } from "../types";
-import { LASER_GRID, LASER_GRID_MASK, LASERS } from "../utils/constant.ts";
+import { LASER_GRID, LASER_GRID_MASK, LASERS } from "#/constants";
+import { cn } from "#/lib/utils.ts";
+import type { Laser } from "#/types";
 
 function laserAnimation(axis: Laser["axis"], dir: Laser["dir"]) {
 	if (axis === "x") return dir === 1 ? "laser-x" : "laser-x-rev";
@@ -60,10 +61,13 @@ function LaserBeam({ laser }: { laser: Laser }) {
 	);
 }
 
-function LaserGrid() {
+// Grid motif with a handful of primary beams riding its lanes, faded out by a
+// radial mask. Runs on CSS keyframes (see styles.css) so it costs nothing on
+// the main thread; `prefers-reduced-motion` hides the beams there too.
+function LaserGrid({ className }: { className?: string }) {
 	return (
 		<div
-			className="pointer-events-none absolute inset-0"
+			className={cn("pointer-events-none absolute inset-0", className)}
 			style={{
 				maskImage: LASER_GRID_MASK,
 				WebkitMaskImage: LASER_GRID_MASK,

@@ -8,6 +8,8 @@ import {
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { Toaster } from "react-hot-toast";
+import { DEFAULT_PAGE_META } from "#/constants";
+import { seo } from "#/utils/seo.ts";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import { Provider } from "../integrations/tanstack-query/root-provider";
 import appCss from "../styles.css?url";
@@ -20,6 +22,7 @@ const THEME_INIT_SCRIPT = `(function(){try{var stored=window.localStorage.getIte
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
 	head: () => ({
+		// Site-wide defaults; every route overrides them via its own seo() call.
 		meta: [
 			{
 				charSet: "utf-8",
@@ -28,9 +31,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 				name: "viewport",
 				content: "width=device-width, initial-scale=1",
 			},
-			{
-				title: "TanStack Start Starter",
-			},
+			...seo(DEFAULT_PAGE_META).meta,
 		],
 		links: [
 			{
@@ -73,7 +74,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	const { queryClient } = Route.useRouteContext();
 
 	return (
-		<html lang="en" suppressHydrationWarning>
+		<html lang="en" className="scroll-smooth" suppressHydrationWarning>
 			<head>
 				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: static theme boot script, not user content */}
 				<script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

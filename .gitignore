@@ -17,3 +17,4 @@ lv
 # JS app artifacts (also listed in apps/web/.gitignore)
 dist
 .DS_Store
+.output
