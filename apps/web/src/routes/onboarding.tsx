@@ -1,10 +1,12 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-
+import { PAGE_META } from "#/constants";
 import { meQuery } from "#/features/auth/api";
 import { workspacesQuery } from "#/features/onboarding/api";
 import { OnboardingWizard } from "#/features/onboarding/components/index.ts";
+import { seo } from "#/utils/seo.ts";
 
 export const Route = createFileRoute("/onboarding")({
+	head: () => seo(PAGE_META["/onboarding"]),
 	ssr: false,
 	beforeLoad: async ({ context }) => {
 		const user = await context.queryClient.ensureQueryData(meQuery);

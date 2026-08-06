@@ -10,8 +10,6 @@ import {
 } from "#/features/marketing/utils/constants.ts";
 import { revealGroup } from "#/features/marketing/utils/motion.ts";
 import { Container } from "./Container.tsx";
-import { DriftingBlobs } from "./DriftingBlobs.tsx";
-import { GrainOverlay } from "./Grain.tsx";
 import { InstallCommand } from "./InstallCommand.tsx";
 import { Reveal } from "./Reveal.tsx";
 
@@ -22,9 +20,9 @@ const HEADLINE_GRADIENT =
 function HeroSection() {
 	return (
 		<section className="relative overflow-hidden pt-19 pb-24">
-			<DriftingBlobs />
+			{/* <DriftingBlobs /> */}
 			<LaserGrid className="z-[1]" />
-			<GrainOverlay />
+			{/* <GrainOverlay /> */}
 
 			{/* Plays on load rather than on scroll — it's already in view. */}
 			<motion.div
