@@ -5,4 +5,5 @@ export * from "./Grainient";
 export * from "./LaserGrid";
 export * from "./LVLogo";
 export * from "./Pagination";
+export * from "./RoutingPending";
 export * from "./TabGroup";

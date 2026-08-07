@@ -91,7 +91,6 @@ function ApprovalScreen({ userCode }: { userCode?: string }) {
 	const expired = data.status === "expired";
 	const settled = approved || denied || expired;
 
-	console.log({ decided, approved, denied, expired, settled });
 	return (
 		<FocusedCard header={<Header />}>
 			<div className="flex flex-col gap-2.5 rounded-xl border border-border bg-muted/40 px-4 py-3.5">
