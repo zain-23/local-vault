@@ -20,14 +20,6 @@ type emailTemplate struct {
 // register is the single source of truth: each kind -> its subject + template
 // Add an email = one row here + one .html file. That is the "centralized subject".
 var registry = map[EmailKind]emailTemplate{
-	KindVerification: {
-		subject: "Verify your LocalVault email",
-		file: "verification.html",
-	},
-	KindPasswordReset: {
-		subject: "Reset your LocalVault password",
-		file: "password_reset.html",
-	},
 	KindWorkspaceInvite: {
 		subject: "You've been invited to a LocalVault workspace",
 		file: "invite.html",

@@ -16,7 +16,7 @@ export function RecentActivity({ events, isLoading }: RecentActivityProps) {
 				{(["r1", "r2", "r3"] as const).map((key) => (
 					<div key={key} className="flex gap-3 py-2">
 						<Skeleton className="h-4 w-14" />
-						<Skeleton className="size-7 rounded-md" />
+						<Skeleton className="size-8 rounded-lg" />
 						<div className="flex-1 space-y-2">
 							<Skeleton className="h-4 w-2/3" />
 							<Skeleton className="h-3 w-1/4" />

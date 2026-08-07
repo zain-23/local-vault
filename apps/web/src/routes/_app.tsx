@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useRouter } from "@tanstack/react-router";
 import { useLayoutEffect } from "react";
 import { AppBreadcrumb } from "#/components/layout/AppBreadcrumb.tsx";
 import { AppSidebar } from "#/components/layout/AppSidebar.tsx";
 import { GlobalModalProvider } from "#/components/shared/GlobalModalProvider.tsx";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "#/components/ui";
 import { authGuard } from "#/features/auth/utils/authGuard";
+import { consumePostLoginRedirect } from "#/features/auth/utils/postLoginRedirect.ts";
 import { parseMemberRole } from "#/features/members/utils/canManageInvites.ts";
 import { workspacesQuery } from "#/features/onboarding/api";
 import { useWorkspaceStore } from "#/stores/useWorkspaceStore";
@@ -28,6 +29,7 @@ function AppLayout() {
 	const { data } = useQuery(workspacesQuery);
 	const activeId = useWorkspaceStore((s) => s.active?.id);
 	const setActive = useWorkspaceStore((s) => s.setActive);
+	const router = useRouter();
 
 	useLayoutEffect(() => {
 		if (activeId) return;
@@ -40,6 +42,15 @@ function AppLayout() {
 			role: parseMemberRole(first.role),
 		});
 	}, [activeId, data, setActive]);
+
+	// The GitHub OAuth callback always lands here on /dashboard — if a guard had
+	// stashed a `?redirect=` before sending the user to GitHub, honor it now.
+	useLayoutEffect(() => {
+		const target = consumePostLoginRedirect();
+		if (target?.startsWith("/") && !target.startsWith("//")) {
+			router.history.push(target);
+		}
+	}, [router]);
 
 	return (
 		<SidebarProvider>

@@ -3,8 +3,6 @@ import toast from "react-hot-toast";
 
 import { AUTH_KEYS } from "#/features/auth/api";
 import {
-	type ChangePasswordInput,
-	type Disable2FAInput,
 	SETTINGS_KEYS,
 	settingsService,
 	type UpdateProfileInput,
@@ -26,58 +24,6 @@ export function useUpdateProfile() {
 		},
 		onError: (error) =>
 			toast.error(error.message || "Could not update profile"),
-	});
-}
-
-export function useChangePassword() {
-	const queryClient = useQueryClient();
-	return useMutation({
-		mutationKey: SETTINGS_KEYS.changePassword(),
-		mutationFn: (input: ChangePasswordInput) =>
-			settingsService.changePassword(input),
-		onSuccess: async (response) => {
-			toast.success(response.message || "Password updated");
-			await queryClient.invalidateQueries({
-				queryKey: SETTINGS_KEYS.sessions(),
-			});
-		},
-		onError: (error) =>
-			toast.error(error.message || "Could not update password"),
-	});
-}
-
-export function useEnable2FA() {
-	return useMutation({
-		mutationKey: SETTINGS_KEYS.enable2FA(),
-		mutationFn: () => settingsService.enable2FA(),
-		onError: (error) =>
-			toast.error(error.message || "Could not start 2FA setup"),
-	});
-}
-
-export function useVerify2FA() {
-	const queryClient = useQueryClient();
-	return useMutation({
-		mutationKey: SETTINGS_KEYS.verify2FA(),
-		mutationFn: (totpCode: string) => settingsService.verify2FA(totpCode),
-		onSuccess: async () => {
-			await invalidateAccount(queryClient);
-		},
-		onError: (error) =>
-			toast.error(error.message || "Could not verify the code"),
-	});
-}
-
-export function useDisable2FA() {
-	const queryClient = useQueryClient();
-	return useMutation({
-		mutationKey: SETTINGS_KEYS.disable2FA(),
-		mutationFn: (input: Disable2FAInput) => settingsService.disable2FA(input),
-		onSuccess: async (response) => {
-			toast.success(response.message || "Two-factor authentication disabled");
-			await invalidateAccount(queryClient);
-		},
-		onError: (error) => toast.error(error.message || "Could not disable 2FA"),
 	});
 }
 

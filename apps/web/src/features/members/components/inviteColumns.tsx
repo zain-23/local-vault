@@ -1,7 +1,8 @@
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { Avatar, AvatarImage } from "#/components/ui";
+import { Avatar, AvatarFallback } from "#/components/ui";
 import type { Invite } from "#/features/members/types";
+import { initialsFromName } from "#/utils";
 import { dateFmt } from "../../../lib/utils.ts";
 import { InviteActions } from "./InviteActions.tsx";
 import { MemberRoleBadge } from "./MemberRoleBadge.tsx";
@@ -16,10 +17,7 @@ export const inviteColumns: ColumnDef<Invite>[] = [
 			return (
 				<div className="flex items-center gap-3">
 					<Avatar>
-						<AvatarImage
-							src={`https://github.com/identicons/${row.index}.png`}
-							alt={invite.email}
-						/>
+						<AvatarFallback>{initialsFromName(invite.email)}</AvatarFallback>
 					</Avatar>
 					<div className="min-w-0">
 						<div className="truncate text-sm font-medium">{invite.email}</div>

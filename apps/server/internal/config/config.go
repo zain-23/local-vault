@@ -25,10 +25,7 @@ type Config struct {
 	ResendAPIKey string
 	FromEmail    string
 
-	// OAuth credentials from Google/GitHub developer console
-	GoogleClientID     string
-	GoogleClientSecret string
-	GoogleRedirectURL  string
+	// OAuth credentials from the GitHub developer console
 	GithubClientID     string
 	GithubClientSecret string
 	GithubRedirectURL  string
@@ -61,10 +58,6 @@ func Load() Config {
 
 		ResendAPIKey: getEnv("RESEND_API_KEY", ""),
 		FromEmail:    getEnv("FROM_EMAIL", "onboarding@resend.dev"),
-
-		GoogleClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
-		GoogleClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
-		GoogleRedirectURL:  getEnv("GOOGLE_REDIRECT_URL", "http://localhost:8080/api/v1/auth/oauth/google/callback"),
 
 		GithubClientID:     getEnv("GITHUB_CLIENT_ID", ""),
 		GithubClientSecret: getEnv("GITHUB_CLIENT_SECRET", ""),

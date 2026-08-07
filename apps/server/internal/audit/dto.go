@@ -43,15 +43,16 @@ type Filter struct {
 // display name joined in from "users". bson tags let the aggregation $project
 // decode straight into this struct.
 type EventResponse struct {
-	ID         string         `bson:"_id" json:"id"`
-	Action     string         `bson:"action" json:"action"`
-	ActorID    string         `bson:"actor_id" json:"actor_id,omitempty"`
-	ActorName  string         `bson:"actor_name" json:"actor_name,omitempty"`
-	TargetType string         `bson:"target_type" json:"target_type,omitempty"`
-	TargetID   string         `bson:"target_id" json:"target_id,omitempty"`
-	TargetName string         `bson:"target_name" json:"target_name,omitempty"`
-	Details    map[string]any `bson:"details" json:"details,omitempty"`
-	DeviceID   string         `bson:"device_id" json:"device_id,omitempty"`
-	IP         string         `bson:"ip" json:"ip,omitempty"`
-	CreatedAt  time.Time      `bson:"created_at" json:"created_at"`
+	ID             string         `bson:"_id" json:"id"`
+	Action         string         `bson:"action" json:"action"`
+	ActorID        string         `bson:"actor_id" json:"actor_id,omitempty"`
+	ActorName      string         `bson:"actor_name" json:"actor_name,omitempty"`
+	ActorAvatarURL string         `bson:"actor_avatar_url" json:"actor_avatar_url,omitempty"`
+	TargetType     string         `bson:"target_type" json:"target_type,omitempty"`
+	TargetID       string         `bson:"target_id" json:"target_id,omitempty"`
+	TargetName     string         `bson:"target_name" json:"target_name,omitempty"`
+	Details        map[string]any `bson:"details" json:"details,omitempty"`
+	DeviceID       string         `bson:"device_id" json:"device_id,omitempty"`
+	IP             string         `bson:"ip" json:"ip,omitempty"`
+	CreatedAt      time.Time      `bson:"created_at" json:"created_at"`
 }

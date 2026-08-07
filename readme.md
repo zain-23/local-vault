@@ -33,7 +33,7 @@ Pick the archive for your platform, extract `lv`, and put it on your `PATH`:
 ```bash
 # Example: Linux amd64
 curl -fsSL https://github.com/zain-23/local-vault/releases/latest/download/lv_linux_amd64.tar.gz \
-  | tar -xz lv
+  | tar -xzf - lv
 sudo mv lv /usr/local/bin/lv
 lv --help
 ```
@@ -41,7 +41,7 @@ lv --help
 ```bash
 # Example: macOS Apple Silicon
 curl -fsSL https://github.com/zain-23/local-vault/releases/latest/download/lv_darwin_arm64.tar.gz \
-  | tar -xz lv
+  | tar -xzf - lv
 sudo mv lv /usr/local/bin/lv
 lv --help
 ```
@@ -54,8 +54,13 @@ lv --help
 
 ### With Go
 
+Requires Go 1.26+. Installs as `local-vault` — rename it to `lv`:
+
 ```bash
 go install github.com/zain-23/local-vault@latest
+mv "$(go env GOPATH)/bin/local-vault" "$(go env GOPATH)/bin/lv"
+# ensure $(go env GOPATH)/bin is on your PATH
+lv --help
 ```
 
 ### From source
@@ -63,7 +68,8 @@ go install github.com/zain-23/local-vault@latest
 ```bash
 git clone https://github.com/zain-23/local-vault
 cd local-vault
-go build -o lv ./apps/cli
+go build -o lv .
+# or: go build -o lv ./apps/cli
 # or: task cli:build
 sudo mv lv /usr/local/bin/lv
 ```
