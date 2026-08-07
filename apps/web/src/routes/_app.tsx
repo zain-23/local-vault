@@ -1,31 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useLayoutEffect } from "react";
 import { AppBreadcrumb } from "#/components/layout/AppBreadcrumb.tsx";
 import { AppSidebar } from "#/components/layout/AppSidebar.tsx";
 import { GlobalModalProvider } from "#/components/shared/GlobalModalProvider.tsx";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "#/components/ui";
-import { meQuery } from "#/features/auth/api";
+import { authGuard } from "#/features/auth/utils/authGuard";
 import { parseMemberRole } from "#/features/members/utils/canManageInvites.ts";
 import { workspacesQuery } from "#/features/onboarding/api";
 import { useWorkspaceStore } from "#/stores/useWorkspaceStore";
 
 export const Route = createFileRoute("/_app")({
-	// Cookie auth lives on the API origin — SSR never sees it. Run the guard in
-	// the browser so a hard refresh doesn't dehydrate me:null and kick you out.
-	ssr: false,
-	beforeLoad: async ({ context }) => {
-		const user = await context.queryClient.ensureQueryData(meQuery);
-		if (!user) {
-			// stash where they were headed so login can send them back
-			throw redirect({ to: "/auth/login" });
-		}
-		if (!user.onboarded) throw redirect({ to: "/onboarding" });
-
-		// One fetch per page load (workspacesQuery). Do NOT
+	...authGuard(
+		(user) => {
+			if (!user) return { to: "/auth/login" };
+			if (!user.onboarded) return { to: "/onboarding" };
+		},
 		// write Zustand here — server store mutations never reach the client.
-		await context.queryClient.ensureQueryData(workspacesQuery);
-	},
+		(context) => context.queryClient.ensureQueryData(workspacesQuery),
+	),
 	component: AppLayout,
 });
 

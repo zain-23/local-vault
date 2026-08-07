@@ -19,7 +19,7 @@ export function useCompleteOnboarding() {
 		mutationKey: ONBOARDING_KEYS.complete(),
 		onSuccess: async () => {
 			await queryClient.fetchQuery({ ...meQuery, staleTime: 0 });
-			navigate({ to: "/" });
+			navigate({ to: "/dashboard" });
 		},
 		onError: (error) => {
 			toast.error(error.message);

@@ -3,6 +3,7 @@ import {
 	useRouterState,
 } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
+import { RoutingPending } from "./components/shared";
 import { getContext } from "./integrations/tanstack-query/root-provider";
 import { routeTree } from "./routeTree.gen";
 
@@ -30,6 +31,11 @@ export function getRouter() {
 		defaultPreload: "intent",
 		defaultPreloadStaleTime: 0,
 		defaultNotFoundComponent: NotFound,
+		defaultPendingComponent: RoutingPending,
+		// Below this, a cache-hit (e.g. post-login) resolves before it'd ever show.
+		defaultPendingMs: 150,
+		// Once shown, hold it this long so it doesn't flicker in and out.
+		defaultPendingMinMs: 300,
 	});
 
 	setupRouterSsrQueryIntegration({ router, queryClient: context.queryClient });

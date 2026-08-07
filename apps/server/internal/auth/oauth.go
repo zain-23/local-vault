@@ -117,7 +117,7 @@ func (h *OAuthHandler) HandleCallback(ctx *fiber.Ctx) error {
 	
 	// Set the same HttpOnly session cookies as password login, then land on the app.
 	setAuthCookies(ctx, h.cfg, loginResp)
-	return ctx.Redirect(h.frontend + "/")
+	return ctx.Redirect(h.frontend + "/dashboard")
 }
 
 // ----------------- Helper -------------

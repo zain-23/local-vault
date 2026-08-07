@@ -32,7 +32,7 @@ export function useLogin2FA() {
 			if (target?.startsWith("/") && !target.startsWith("//")) {
 				router.history.push(target);
 			} else {
-				navigate({ to: "/" });
+				navigate({ to: "/dashboard" });
 			}
 		},
 		onError: (error) => {
