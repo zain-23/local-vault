@@ -1,9 +1,11 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMotionValueEvent, useScroll } from "motion/react";
 import { useState } from "react";
 
 import { LVLogo } from "#/components/shared/LVLogo.tsx";
 import { Button } from "#/components/ui/Button.tsx";
+import { meQuery } from "#/features/auth/api";
 import {
 	NAV_LINKS,
 	SECTION_IDS,
@@ -17,6 +19,7 @@ const STUCK_AFTER_PX = 6;
 function LandingNav() {
 	const { scrollY } = useScroll();
 	const [stuck, setStuck] = useState(false);
+	const { data: user } = useQuery(meQuery);
 
 	// setState only on the crossing, not on every scroll frame.
 	useMotionValueEvent(scrollY, "change", (y) => {
@@ -49,12 +52,20 @@ function LandingNav() {
 				</nav>
 
 				<div className="flex items-center gap-2">
-					<Button asChild variant="ghost" className="hidden sm:inline-flex">
-						<Link to="/auth/login">Sign in</Link>
-					</Button>
-					<Button asChild>
-						<a href={`#${SECTION_IDS.install}`}>Get started</a>
-					</Button>
+					{user ? (
+						<Button asChild>
+							<Link to="/dashboard">Dashboard</Link>
+						</Button>
+					) : (
+						<>
+							<Button asChild variant="ghost" className="hidden sm:inline-flex">
+								<Link to="/auth/login">Sign in</Link>
+							</Button>
+							<Button asChild>
+								<a href={`#${SECTION_IDS.install}`}>Get started</a>
+							</Button>
+						</>
+					)}
 				</div>
 			</Container>
 		</header>
