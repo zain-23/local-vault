@@ -17,6 +17,7 @@ export interface AuditEvent {
 	action: string;
 	actor_id?: string;
 	actor_name?: string;
+	actor_avatar_url?: string;
 	target_type?: string;
 	target_id?: string;
 	target_name?: string;

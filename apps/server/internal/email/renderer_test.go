@@ -12,8 +12,6 @@ func TestRenderer_RendersAllKinds(t *testing.T) {
 	}
 
 	jobs := []EmailJob{
-		{Kind: KindVerification, Name: "Alex", URL: "https://app.example.com/verify?t=abc"},
-		{Kind: KindPasswordReset, Name: "Alex", URL: "https://app.example.com/reset?t=abc"},
 		{Kind: KindWorkspaceInvite, Name: "Acme", URL: "https://app.example.com/invite?t=abc"},
 		{Kind: KindVaultCollaboratorInvite, Name: "prod-vault", Code: "XKCD12"},
 	}

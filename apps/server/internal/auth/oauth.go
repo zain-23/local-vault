@@ -7,15 +7,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
+	"golang.org/x/oauth2/github"
 
 	"github.com/zain-23/local-vault/apps/server/internal/config"
 )
 
-// OAuthHandler manages Google/Github login flows
+// OAuthHandler manages the GitHub login flow
 type OAuthHandler struct {
 	service 	*Service
 	config		map[string]*oauth2.Config
@@ -27,12 +28,12 @@ func NewOAuthHandler(service *Service, cfg config.Config) *OAuthHandler {
 	return &OAuthHandler{
 		service: service,
 		config: map[string]*oauth2.Config{
-			"google": {
-				ClientID: cfg.GoogleClientID,
-				ClientSecret: cfg.GoogleClientSecret,
-				RedirectURL: cfg.GoogleRedirectURL,
-				Scopes: []string{"openid", "email", "profile"},
-				Endpoint: google.Endpoint,
+			"github": {
+				ClientID: cfg.GithubClientID,
+				ClientSecret: cfg.GithubClientSecret,
+				RedirectURL: cfg.GithubRedirectURL,
+				Scopes: []string{"read:user", "user:email"},
+				Endpoint: github.Endpoint,
 			},
 		},
 		frontend: cfg.FrontendURL,
@@ -46,7 +47,7 @@ func generateOAuthState() string {
 	return base64.URLEncoding.EncodeToString(b)
 }
 
-// RedirectToProvier - GET /api/v1/auth/oauth/:provider - send browser to Google/Githib login
+// RedirectToProvier - GET /api/v1/auth/oauth/:provider - send browser to GitHub login
 func (h *OAuthHandler) RedirectToProvider(ctx *fiber.Ctx) error {
 	provider := ctx.Params("provider")
 	oauthCfg, ok := h.config[provider]
@@ -130,26 +131,95 @@ func fetchOAuthUser(provider string, cfg *oauth2.Config, token *oauth2.Token) (*
 	client := cfg.Client(context.TODO(), token)
 
 	switch provider {
-	case "google": 
-		return fetchGoogleUser(client)
+	case "github":
+		return fetchGithubUser(client)
 	}
-	
+
 	return nil, fmt.Errorf("unsupported provider: %s", provider)
 }
 
-func fetchGoogleUser(client *http.Client) (*oauthUserInfo, error) {
-	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
+// fetchGithubUser calls GitHub's /user API for profile info, then falls back to
+// /user/emails when the primary email is private (GitHub omits it from /user in that case).
+func fetchGithubUser(client *http.Client) (*oauthUserInfo, error) {
+	req, err := http.NewRequest("GET", "https://api.github.com/user", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close() // always close response body to prevent memory leaks
 
 	var data struct {
-		ID      string `json:"id"`
-		Email   string `json:"email"`
-		Name    string `json:"name"`
-		Picture string `json:"picture"`
+		ID        int64  `json:"id"`
+		Login     string `json:"login"`
+		Name      string `json:"name"`
+		Email     string `json:"email"`
+		AvatarURL string `json:"avatar_url"`
 	}
-	json.NewDecoder(resp.Body).Decode(&data)
-	return &oauthUserInfo{id: data.ID, email: data.Email, name: data.Name, avatar: data.Picture}, nil
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return nil, err
+	}
+
+	email := data.Email
+	if email == "" {
+		email, err = fetchGithubPrimaryEmail(client)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	name := data.Name
+	if name == "" {
+		name = data.Login // many GitHub users never set a display name
+	}
+
+	return &oauthUserInfo{
+		id:     strconv.FormatInt(data.ID, 10),
+		email:  email,
+		name:   name,
+		avatar: data.AvatarURL,
+	}, nil
+}
+
+// fetchGithubPrimaryEmail hits /user/emails (requires the user:email scope) — needed
+// when the user has "Keep my email address private" enabled, so /user returns no email.
+func fetchGithubPrimaryEmail(client *http.Client) (string, error) {
+	req, err := http.NewRequest("GET", "https://api.github.com/user/emails", nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "application/vnd.github+json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var emails []struct {
+		Email    string `json:"email"`
+		Primary  bool   `json:"primary"`
+		Verified bool   `json:"verified"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&emails); err != nil {
+		return "", err
+	}
+
+	var firstVerified string
+	for _, e := range emails {
+		if e.Primary && e.Verified {
+			return e.Email, nil
+		}
+		if e.Verified && firstVerified == "" {
+			firstVerified = e.Email
+		}
+	}
+	if firstVerified != "" {
+		return firstVerified, nil
+	}
+	return "", fmt.Errorf("no verified email found on GitHub account")
 }

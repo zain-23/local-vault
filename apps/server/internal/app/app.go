@@ -112,7 +112,7 @@ func New(cfg config.Config) (*App, error) {
 
 	// Create auth domain: store -> service -> handler
 	authStore := auth.NewStore(db)
-	authService := auth.NewService(authStore, jwtService, publisher, cfg)
+	authService := auth.NewService(authStore, jwtService, cfg)
 	authHandler := auth.NewHandler(authService, cfg)
 	// OAuth
 	oauthHandler := auth.NewOAuthHandler(authService, cfg)

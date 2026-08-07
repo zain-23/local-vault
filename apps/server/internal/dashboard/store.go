@@ -119,7 +119,10 @@ func actorLookup() mongo.Pipeline {
 			"as":           "actor",
 		}}},
 		{{Key: "$unwind", Value: bson.M{"path": "$actor", "preserveNullAndEmptyArrays": true}}},
-		{{Key: "$addFields", Value: bson.M{"actor_name": "$actor.name"}}},
+		{{Key: "$addFields", Value: bson.M{
+			"actor_name":       "$actor.name",
+			"actor_avatar_url": "$actor.avatar_url",
+		}}},
 		{{Key: "$project", Value: bson.M{"actor": 0}}},
 	}
 }

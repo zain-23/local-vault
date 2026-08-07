@@ -1,6 +1,5 @@
 import { useQueryStates } from "nuqs";
 import { ProfileSection } from "#/features/settings/components/ProfileSection.tsx";
-import { SecuritySection } from "#/features/settings/components/SecuritySection.tsx";
 import { SessionsSection } from "#/features/settings/components/SessionsSection.tsx";
 import { SettingsNav } from "#/features/settings/components/SettingsNav.tsx";
 import {
@@ -42,8 +41,6 @@ export function SettingsPage() {
 
 function SettingsPanel({ section }: { section: SettingsSection }) {
 	switch (section) {
-		case "security":
-			return <SecuritySection />;
 		case "sessions":
 			return <SessionsSection />;
 		default:

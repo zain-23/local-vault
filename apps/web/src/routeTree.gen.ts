@@ -20,15 +20,7 @@ import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppMembersRouteImport } from './routes/_app/members'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppVaultsRouteImport } from './routes/_app/vaults'
-import { Route as AuthCheckEmailRouteImport } from './routes/auth/check-email'
-import { Route as AuthForgotPasswordRouteImport } from './routes/auth/forgot-password'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
-import { Route as AuthMagicLinkRouteImport } from './routes/auth/magic-link'
-import { Route as AuthResetPasswordRouteImport } from './routes/auth/reset-password'
-import { Route as AuthResetSuccessRouteImport } from './routes/auth/reset-success'
-import { Route as AuthSignupRouteImport } from './routes/auth/signup'
-import { Route as AuthTwoFactorRouteImport } from './routes/auth/two-factor'
-import { Route as AuthVerifyEmailRouteImport } from './routes/auth/verify-email'
 import { Route as DeviceIndexRouteImport } from './routes/device/index'
 import { Route as DeviceConfirmationRouteImport } from './routes/device/confirmation'
 import { Route as WorkspacesJoinRouteImport } from './routes/workspaces/join'
@@ -89,49 +81,9 @@ const AppVaultsRoute = AppVaultsRouteImport.update({
   path: '/vaults',
   getParentRoute: () => AppRoute,
 } as any)
-const AuthCheckEmailRoute = AuthCheckEmailRouteImport.update({
-  id: '/check-email',
-  path: '/check-email',
-  getParentRoute: () => AuthRouteRoute,
-} as any)
-const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => AuthRouteRoute,
-} as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => AuthRouteRoute,
-} as any)
-const AuthMagicLinkRoute = AuthMagicLinkRouteImport.update({
-  id: '/magic-link',
-  path: '/magic-link',
-  getParentRoute: () => AuthRouteRoute,
-} as any)
-const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => AuthRouteRoute,
-} as any)
-const AuthResetSuccessRoute = AuthResetSuccessRouteImport.update({
-  id: '/reset-success',
-  path: '/reset-success',
-  getParentRoute: () => AuthRouteRoute,
-} as any)
-const AuthSignupRoute = AuthSignupRouteImport.update({
-  id: '/signup',
-  path: '/signup',
-  getParentRoute: () => AuthRouteRoute,
-} as any)
-const AuthTwoFactorRoute = AuthTwoFactorRouteImport.update({
-  id: '/two-factor',
-  path: '/two-factor',
-  getParentRoute: () => AuthRouteRoute,
-} as any)
-const AuthVerifyEmailRoute = AuthVerifyEmailRouteImport.update({
-  id: '/verify-email',
-  path: '/verify-email',
   getParentRoute: () => AuthRouteRoute,
 } as any)
 const DeviceIndexRoute = DeviceIndexRouteImport.update({
@@ -171,15 +123,7 @@ export interface FileRoutesByFullPath {
   '/members': typeof AppMembersRoute
   '/settings': typeof AppSettingsRoute
   '/vaults': typeof AppVaultsRouteWithChildren
-  '/auth/check-email': typeof AuthCheckEmailRoute
-  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
-  '/auth/magic-link': typeof AuthMagicLinkRoute
-  '/auth/reset-password': typeof AuthResetPasswordRoute
-  '/auth/reset-success': typeof AuthResetSuccessRoute
-  '/auth/signup': typeof AuthSignupRoute
-  '/auth/two-factor': typeof AuthTwoFactorRoute
-  '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/device/confirmation': typeof DeviceConfirmationRoute
   '/workspaces/join': typeof WorkspacesJoinRoute
   '/device/': typeof DeviceIndexRoute
@@ -195,15 +139,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/members': typeof AppMembersRoute
   '/settings': typeof AppSettingsRoute
-  '/auth/check-email': typeof AuthCheckEmailRoute
-  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
-  '/auth/magic-link': typeof AuthMagicLinkRoute
-  '/auth/reset-password': typeof AuthResetPasswordRoute
-  '/auth/reset-success': typeof AuthResetSuccessRoute
-  '/auth/signup': typeof AuthSignupRoute
-  '/auth/two-factor': typeof AuthTwoFactorRoute
-  '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/device/confirmation': typeof DeviceConfirmationRoute
   '/workspaces/join': typeof WorkspacesJoinRoute
   '/device': typeof DeviceIndexRoute
@@ -223,15 +159,7 @@ export interface FileRoutesById {
   '/_app/members': typeof AppMembersRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/vaults': typeof AppVaultsRouteWithChildren
-  '/auth/check-email': typeof AuthCheckEmailRoute
-  '/auth/forgot-password': typeof AuthForgotPasswordRoute
   '/auth/login': typeof AuthLoginRoute
-  '/auth/magic-link': typeof AuthMagicLinkRoute
-  '/auth/reset-password': typeof AuthResetPasswordRoute
-  '/auth/reset-success': typeof AuthResetSuccessRoute
-  '/auth/signup': typeof AuthSignupRoute
-  '/auth/two-factor': typeof AuthTwoFactorRoute
-  '/auth/verify-email': typeof AuthVerifyEmailRoute
   '/device/confirmation': typeof DeviceConfirmationRoute
   '/workspaces/join': typeof WorkspacesJoinRoute
   '/device/': typeof DeviceIndexRoute
@@ -251,15 +179,7 @@ export interface FileRouteTypes {
     | '/members'
     | '/settings'
     | '/vaults'
-    | '/auth/check-email'
-    | '/auth/forgot-password'
     | '/auth/login'
-    | '/auth/magic-link'
-    | '/auth/reset-password'
-    | '/auth/reset-success'
-    | '/auth/signup'
-    | '/auth/two-factor'
-    | '/auth/verify-email'
     | '/device/confirmation'
     | '/workspaces/join'
     | '/device/'
@@ -275,15 +195,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/members'
     | '/settings'
-    | '/auth/check-email'
-    | '/auth/forgot-password'
     | '/auth/login'
-    | '/auth/magic-link'
-    | '/auth/reset-password'
-    | '/auth/reset-success'
-    | '/auth/signup'
-    | '/auth/two-factor'
-    | '/auth/verify-email'
     | '/device/confirmation'
     | '/workspaces/join'
     | '/device'
@@ -302,15 +214,7 @@ export interface FileRouteTypes {
     | '/_app/members'
     | '/_app/settings'
     | '/_app/vaults'
-    | '/auth/check-email'
-    | '/auth/forgot-password'
     | '/auth/login'
-    | '/auth/magic-link'
-    | '/auth/reset-password'
-    | '/auth/reset-success'
-    | '/auth/signup'
-    | '/auth/two-factor'
-    | '/auth/verify-email'
     | '/device/confirmation'
     | '/workspaces/join'
     | '/device/'
@@ -406,67 +310,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVaultsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/auth/check-email': {
-      id: '/auth/check-email'
-      path: '/check-email'
-      fullPath: '/auth/check-email'
-      preLoaderRoute: typeof AuthCheckEmailRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
-    '/auth/forgot-password': {
-      id: '/auth/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/auth/forgot-password'
-      preLoaderRoute: typeof AuthForgotPasswordRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
     '/auth/login': {
       id: '/auth/login'
       path: '/login'
       fullPath: '/auth/login'
       preLoaderRoute: typeof AuthLoginRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
-    '/auth/magic-link': {
-      id: '/auth/magic-link'
-      path: '/magic-link'
-      fullPath: '/auth/magic-link'
-      preLoaderRoute: typeof AuthMagicLinkRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
-    '/auth/reset-password': {
-      id: '/auth/reset-password'
-      path: '/reset-password'
-      fullPath: '/auth/reset-password'
-      preLoaderRoute: typeof AuthResetPasswordRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
-    '/auth/reset-success': {
-      id: '/auth/reset-success'
-      path: '/reset-success'
-      fullPath: '/auth/reset-success'
-      preLoaderRoute: typeof AuthResetSuccessRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
-    '/auth/signup': {
-      id: '/auth/signup'
-      path: '/signup'
-      fullPath: '/auth/signup'
-      preLoaderRoute: typeof AuthSignupRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
-    '/auth/two-factor': {
-      id: '/auth/two-factor'
-      path: '/two-factor'
-      fullPath: '/auth/two-factor'
-      preLoaderRoute: typeof AuthTwoFactorRouteImport
-      parentRoute: typeof AuthRouteRoute
-    }
-    '/auth/verify-email': {
-      id: '/auth/verify-email'
-      path: '/verify-email'
-      fullPath: '/auth/verify-email'
-      preLoaderRoute: typeof AuthVerifyEmailRouteImport
       parentRoute: typeof AuthRouteRoute
     }
     '/device/': {
@@ -508,27 +356,11 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthRouteRouteChildren {
-  AuthCheckEmailRoute: typeof AuthCheckEmailRoute
-  AuthForgotPasswordRoute: typeof AuthForgotPasswordRoute
   AuthLoginRoute: typeof AuthLoginRoute
-  AuthMagicLinkRoute: typeof AuthMagicLinkRoute
-  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
-  AuthResetSuccessRoute: typeof AuthResetSuccessRoute
-  AuthSignupRoute: typeof AuthSignupRoute
-  AuthTwoFactorRoute: typeof AuthTwoFactorRoute
-  AuthVerifyEmailRoute: typeof AuthVerifyEmailRoute
 }
 
 const AuthRouteRouteChildren: AuthRouteRouteChildren = {
-  AuthCheckEmailRoute: AuthCheckEmailRoute,
-  AuthForgotPasswordRoute: AuthForgotPasswordRoute,
   AuthLoginRoute: AuthLoginRoute,
-  AuthMagicLinkRoute: AuthMagicLinkRoute,
-  AuthResetPasswordRoute: AuthResetPasswordRoute,
-  AuthResetSuccessRoute: AuthResetSuccessRoute,
-  AuthSignupRoute: AuthSignupRoute,
-  AuthTwoFactorRoute: AuthTwoFactorRoute,
-  AuthVerifyEmailRoute: AuthVerifyEmailRoute,
 }
 
 const AuthRouteRouteWithChildren = AuthRouteRoute._addFileChildren(

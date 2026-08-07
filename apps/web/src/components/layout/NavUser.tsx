@@ -16,7 +16,7 @@ import {
 } from "#/components/ui";
 import { meQuery } from "#/features/auth/api";
 import { useLogout } from "#/features/auth/hooks";
-import { initialsFromName } from "#/features/settings/utils";
+import { initialsFromName } from "#/utils";
 
 export function NavUser() {
 	const { isMobile } = useSidebar();

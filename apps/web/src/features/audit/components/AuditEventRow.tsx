@@ -1,3 +1,4 @@
+import { Avatar, AvatarFallback, AvatarImage } from "#/components/ui";
 import type { AuditEvent } from "#/features/audit/api";
 import {
 	ACTION_TONE_CLASS,
@@ -5,9 +6,10 @@ import {
 	actionTone,
 	formatEventClock,
 	hueFromString,
-	initialsFromName,
 } from "#/features/audit/utils";
 import { cn } from "#/lib/utils.ts";
+import { initialsFromName } from "#/utils";
+
 
 type AuditEventRowProps = {
 	event: AuditEvent;
@@ -23,21 +25,25 @@ export function AuditEventRow({ event }: AuditEventRowProps) {
 	const initials = initialsFromName(actor);
 
 	return (
-		<div className="grid grid-cols-[64px_28px_minmax(0,1fr)] items-start gap-3 border-b border-border py-2.5 last:border-b-0 sm:grid-cols-[76px_28px_minmax(0,1fr)] sm:gap-3.5 sm:px-1">
+		<div className="grid grid-cols-[64px_36px_minmax(0,1fr)] items-start gap-3 border-b border-border py-2.5 last:border-b-0 sm:grid-cols-[76px_36px_minmax(0,1fr)] sm:gap-3.5 sm:px-1">
 			<time
 				dateTime={event.created_at}
-				className="pt-1 font-mono text-[11.5px] text-muted-foreground tabular-nums"
+				className="pt-1 font-mono text-xs text-muted-foreground tabular-nums"
 			>
 				{formatEventClock(event.created_at)}
 			</time>
 
-			<div
-				aria-hidden
-				className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md text-[10px] font-semibold text-white"
-				style={{ background: `oklch(0.52 0.12 ${hue})` }}
-			>
-				{initials}
-			</div>
+			<Avatar aria-hidden className="rounded-lg">
+				{event.actor_avatar_url ? (
+					<AvatarImage src={event.actor_avatar_url} alt={actor} />
+				) : null}
+				<AvatarFallback
+					className="rounded-lg text-sm font-semibold text-white"
+					style={{ background: `oklch(0.52 0.12 ${hue})` }}
+				>
+					{initials}
+				</AvatarFallback>
+			</Avatar>
 
 			<div className="min-w-0">
 				<p className="text-sm leading-snug">
