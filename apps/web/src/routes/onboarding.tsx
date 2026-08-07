@@ -1,18 +1,16 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { PAGE_META } from "#/constants";
-import { meQuery } from "#/features/auth/api";
+import { authGuard } from "#/features/auth/utils/authGuard";
 import { workspacesQuery } from "#/features/onboarding/api";
 import { OnboardingWizard } from "#/features/onboarding/components/index.ts";
 import { seo } from "#/utils/seo.ts";
 
 export const Route = createFileRoute("/onboarding")({
 	head: () => seo(PAGE_META["/onboarding"]),
-	ssr: false,
-	beforeLoad: async ({ context }) => {
-		const user = await context.queryClient.ensureQueryData(meQuery);
-		if (!user) throw redirect({ to: "/auth/login" });
-		if (user.onboarded) throw redirect({ to: "/" });
-	},
+	...authGuard((user) => {
+		if (!user) return { to: "/auth/login" };
+		if (user.onboarded) return { to: "/dashboard" };
+	}),
 	// Prefetch the caller's workspaces so Step 1 can prefill without a flash and
 	// resume from an already-created workspace after a refresh.
 	loader: ({ context }) => context.queryClient.ensureQueryData(workspacesQuery),
