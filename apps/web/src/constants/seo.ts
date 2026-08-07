@@ -30,42 +30,7 @@ export const PAGE_META = {
 	/* ── auth ── */
 	"/auth/login": {
 		title: titled("Sign in"),
-		description: "Sign in to your LocalVault workspace.",
-		robots: PRIVATE_ROBOTS,
-	},
-	"/auth/signup": {
-		title: titled("Create an account"),
-		description:
-			"Create a LocalVault workspace and start sharing secrets without a chat window.",
-		robots: PRIVATE_ROBOTS,
-	},
-	"/auth/forgot-password": {
-		title: titled("Reset your password"),
-		description: "Send yourself a link to choose a new password.",
-		robots: PRIVATE_ROBOTS,
-	},
-	"/auth/reset-password": {
-		title: titled("Choose a new password"),
-		robots: PRIVATE_ROBOTS,
-	},
-	"/auth/reset-success": {
-		title: titled("Password updated"),
-		robots: PRIVATE_ROBOTS,
-	},
-	"/auth/verify-email": {
-		title: titled("Verify your email"),
-		robots: PRIVATE_ROBOTS,
-	},
-	"/auth/check-email": {
-		title: titled("Check your email"),
-		robots: PRIVATE_ROBOTS,
-	},
-	"/auth/two-factor": {
-		title: titled("Two-factor authentication"),
-		robots: PRIVATE_ROBOTS,
-	},
-	"/auth/magic-link": {
-		title: titled("Sign in with a magic link"),
+		description: "Sign in to your LocalVault workspace with GitHub.",
 		robots: PRIVATE_ROBOTS,
 	},
 

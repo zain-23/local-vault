@@ -1,7 +1,8 @@
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { Avatar, AvatarImage } from "#/components/ui";
+import { Avatar, AvatarFallback, AvatarImage } from "#/components/ui";
 import type { Member } from "#/features/members/types";
+import { initialsFromName } from "#/utils";
 import { dateFmt } from "../../../lib/utils.ts";
 import { MemberActions } from "./MemberActions.tsx";
 import { MemberRoleBadge } from "./MemberRoleBadge.tsx";
@@ -18,12 +19,12 @@ export const memberColumns: ColumnDef<Member>[] = [
 			return (
 				<div className="flex items-center gap-3">
 					<Avatar>
-						<AvatarImage
-							src={
-								m.avatar_url || `https://github.com/identicons/${row.index}.png`
-							}
-							alt={m.name}
-						/>
+						{m.avatar_url ? (
+							<AvatarImage src={m.avatar_url} alt={m.name} />
+						) : null}
+						<AvatarFallback>
+							{initialsFromName(m.name || m.email)}
+						</AvatarFallback>
 					</Avatar>
 					<div className="min-w-0">
 						<div className="truncate text-sm font-medium">{m.name}</div>

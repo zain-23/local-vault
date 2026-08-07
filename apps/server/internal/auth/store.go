@@ -11,21 +11,15 @@ import (
 
 // Store handles all MongoDB operations for auth
 type Store struct {
-	users       *mongo.Collection
-	sessions    *mongo.Collection
-	emailVerifs *mongo.Collection
-	pwdResets   *mongo.Collection
-	magicLinks  *mongo.Collection
+	users    *mongo.Collection
+	sessions *mongo.Collection
 }
 
 // NewStore creates store and sets up MongoDB indexes for fast queries
 func NewStore(db *mongo.Database) *Store {
 	s := &Store{
-		users:       db.Collection("users"),
-		sessions:    db.Collection("sessions"),
-		emailVerifs: db.Collection("email_verifications"),
-		pwdResets:   db.Collection("password_resets"),
-		magicLinks:  db.Collection("magic_links"),
+		users:    db.Collection("users"),
+		sessions: db.Collection("sessions"),
 	}
 
 	ctx := context.TODO()
@@ -36,25 +30,13 @@ func NewStore(db *mongo.Database) *Store {
 		Options: options.Index().SetUnique(true),
 	})
 
-	// TTL indexes — MongoDB auto-deletes documents when expires_at passes (no cleanup cron needed)
+	// TTL index — MongoDB auto-deletes documents when expires_at passes (no cleanup cron needed)
 	s.sessions.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys:    bson.D{{Key: "expires_at", Value: 1}},
 		Options: options.Index().SetExpireAfterSeconds(0),
 	})
 	s.sessions.Indexes().CreateOne(ctx, mongo.IndexModel{
 		Keys: bson.D{{Key: "user_id", Value: 1}}, // speeds up "find all sessions for user"
-	})
-	s.emailVerifs.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    bson.D{{Key: "expires_at", Value: 1}},
-		Options: options.Index().SetExpireAfterSeconds(0),
-	})
-	s.pwdResets.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    bson.D{{Key: "expires_at", Value: 1}},
-		Options: options.Index().SetExpireAfterSeconds(0),
-	})
-	s.magicLinks.Indexes().CreateOne(ctx, mongo.IndexModel{
-		Keys:    bson.D{{Key: "expires_at", Value: 1}},
-		Options: options.Index().SetExpireAfterSeconds(0),
 	})
 
 	return s
@@ -101,19 +83,6 @@ func (s *Store) FindUserByOAuth(ctx context.Context, provider, oauthID string) (
 func (s *Store) UpdateUser(ctx context.Context, id string, fields bson.M) error {
 	_, err := s.users.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": fields})
 	return err
-}
-
-// ConsumeBackupCode pulls one hashed code from the array. Returns whether it matched —
-// $pull only modifies the doc if the code was present, so it's single-use by construction.
-func (s *Store) ConsumeBackupCode(ctx context.Context, userID, hash string) (bool, error) {
-	res, err := s.users.UpdateOne(ctx,
-		bson.M{"_id": userID},
-		bson.M{"$pull": bson.M{"backup_codes": hash}},
-	)
-	if err != nil {
-		return false, err
-	}
-	return res.ModifiedCount == 1, nil
 }
 
 // ------------------------ Session operations ---
@@ -166,77 +135,6 @@ func (s *Store) DeleteSessionsByUserIDExcept(ctx context.Context, userID, except
 		"user_id": userID,
 		"_id":     bson.M{"$ne": exceptID},
 	})
-	return err
-}
-
-// ----------------------- Email verification ---
-func (s *Store) CreateEmailVerification(ctx context.Context, ev *EmailVerification) error {
-	_, err := s.emailVerifs.InsertOne(ctx, ev)
-	return err
-}
-
-func (s *Store) FindEmailVerificationByHash(ctx context.Context, tokenHash string) (*EmailVerification, error) {
-	var ev EmailVerification
-	err := s.emailVerifs.FindOne(ctx, bson.M{
-		"token_hash": tokenHash,
-		"expires_at": bson.M{"$gt": time.Now()},
-	}).Decode(&ev)
-	if err == mongo.ErrNoDocuments {
-		return nil, nil
-	}
-	return &ev, err
-}
-
-func (s *Store) DeleteEmailVerification(ctx context.Context, id string) error {
-	_, err := s.emailVerifs.DeleteOne(ctx, bson.M{"_id": id})
-	return err
-}
-
-// ------------------- Password reset ---
-func (s *Store) CreatePasswordReset(ctx context.Context, pr *PasswordReset) error {
-	_, err := s.pwdResets.InsertOne(ctx, pr)
-	return err
-}
-
-func (s *Store) FindPasswordResetByHash(ctx context.Context, tokenHash string) (*PasswordReset, error) {
-	var pr PasswordReset
-	err := s.pwdResets.FindOne(ctx, bson.M{
-		"token_hash": tokenHash,
-		"used":       false,
-		"expires_at": bson.M{"$gt": time.Now()},
-	}).Decode(&pr)
-	if err == mongo.ErrNoDocuments {
-		return nil, nil
-	}
-	return &pr, err
-}
-
-func (s *Store) MarkPasswordResetUsed(ctx context.Context, id string) error {
-	_, err := s.pwdResets.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{"used": true}})
-	return err
-}
-
-// ------------------- Magic link ---
-func (s *Store) CreateMagicLink(ctx context.Context, ml *MagicLink) error {
-	_, err := s.magicLinks.InsertOne(ctx, ml)
-	return err
-}
-
-func (s *Store) FindMagicLinkByHash(ctx context.Context, tokenHash string) (*MagicLink, error) {
-	var ml MagicLink
-	err := s.magicLinks.FindOne(ctx, bson.M{
-		"token_hash": tokenHash,
-		"used":       false,
-		"expires_at": bson.M{"$gt": time.Now()},
-	}).Decode(&ml)
-	if err == mongo.ErrNoDocuments {
-		return nil, nil
-	}
-	return &ml, err
-}
-
-func (s *Store) MarkMagicLinkUsed(ctx context.Context, id string) error {
-	_, err := s.magicLinks.UpdateOne(ctx, bson.M{"_id": id}, bson.M{"$set": bson.M{"used": true}})
 	return err
 }
 

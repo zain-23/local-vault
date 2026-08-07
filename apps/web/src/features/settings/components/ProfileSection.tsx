@@ -2,11 +2,19 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 
-import { Button, Input, Label } from "#/components/ui";
+import {
+	Avatar,
+	AvatarFallback,
+	AvatarImage,
+	Button,
+	Input,
+	Label,
+} from "#/components/ui";
 import { meQuery } from "#/features/auth/api";
 import { SettingsBlock } from "#/features/settings/components/SettingsBlock.tsx";
 import { useUpdateProfile } from "#/features/settings/hooks";
-import { formatMemberSince, initialsFromName } from "#/features/settings/utils";
+import { formatMemberSince } from "#/features/settings/utils";
+import { initialsFromName } from "#/utils";
 
 export function ProfileSection() {
 	const { data: user } = useQuery(meQuery);
@@ -38,14 +46,16 @@ export function ProfileSection() {
 				description="Shown in the workspace and audit log."
 			>
 				<div className="flex items-center gap-3">
-					<div
-						aria-hidden
-						className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 font-mono text-sm font-semibold text-primary"
-					>
-						{initials}
-					</div>
+					<Avatar size="lg" className="rounded-lg">
+						{user?.avatar_url ? (
+							<AvatarImage src={user.avatar_url} alt={user.name} />
+						) : null}
+						<AvatarFallback className="rounded-lg bg-primary/15 font-mono text-sm font-semibold text-primary">
+							{initials}
+						</AvatarFallback>
+					</Avatar>
 					<span className="text-[13px] text-muted-foreground">
-						Initials from your name
+						Synced from your GitHub profile
 					</span>
 				</div>
 			</SettingsBlock>

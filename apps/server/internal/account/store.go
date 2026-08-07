@@ -40,19 +40,6 @@ func (s *Store) UpdateUser(ctx context.Context, id string, fields bson.M) error 
 	return err
 }
 
-// ConsumeBackupCode pulls one hashed code from the array. Returns whether it matched —
-// $pull only modifies the doc if the code was present, so it's single-use by construction.
-func (s *Store) ConsumeBackupCode(ctx context.Context, userID, hash string) (bool, error) {
-	res, err := s.users.UpdateOne(ctx,
-		bson.M{"_id": userID},
-		bson.M{"$pull": bson.M{"backup_codes": hash}},
-	)
-	if err != nil {
-		return false, err
-	}
-	return res.ModifiedCount == 1, nil
-}
-
 // ListSessions returns the user's active sessions.
 func (s *Store) ListSessions(ctx context.Context, userID string) ([]Session, error) {
 	cur, err := s.sessions.Find(ctx, bson.M{"user_id": userID})

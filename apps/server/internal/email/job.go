@@ -4,9 +4,6 @@ package email
 type EmailKind string
 
 const (
-	KindVerification            EmailKind = "verification"
-	KindPasswordReset           EmailKind = "password_reset"
-	KindSendMagicLink           EmailKind = "send_magic_link"
 	KindWorkspaceInvite         EmailKind = "workspace_invite"
 	KindVaultCollaboratorInvite EmailKind = "vault_collaborator_invite"
 )

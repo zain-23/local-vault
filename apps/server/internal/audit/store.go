@@ -9,10 +9,9 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-
 type Store struct {
-	events  	*mongo.Collection
-	users  	*mongo.Collection
+	events *mongo.Collection
+	users  *mongo.Collection
 }
 
 func NewStore(db *mongo.Database) *Store {
@@ -34,7 +33,6 @@ func NewStore(db *mongo.Database) *Store {
 
 	return s
 }
-
 
 // Insert appends one event. Called only by the recorder.
 func (s *Store) Insert(ctx context.Context, e *Event) error {
@@ -72,7 +70,6 @@ func buildMatch(workspaceID string, f Filter) bson.M {
 	return m
 }
 
-
 // actorLookup are the shared stages that join each event to its actor's name.
 // preserveNullAndEmptyArrays keeps events with no actor (public join) in the result.
 func actorLookup() mongo.Pipeline {
@@ -84,7 +81,10 @@ func actorLookup() mongo.Pipeline {
 			"as":           "actor",
 		}}},
 		{{Key: "$unwind", Value: bson.M{"path": "$actor", "preserveNullAndEmptyArrays": true}}},
-		{{Key: "$addFields", Value: bson.M{"actor_name": "$actor.name"}}},
+		{{Key: "$addFields", Value: bson.M{
+			"actor_name":       "$actor.name",
+			"actor_avatar_url": "$actor.avatar_url",
+		}}},
 		{{Key: "$project", Value: bson.M{"actor": 0}}}, // drop the joined doc, keep actor_name
 	}
 }
@@ -131,7 +131,6 @@ func (s *Store) ListPaginated(ctx context.Context, workspaceID string, f Filter,
 	}
 	return items, total, nil
 }
-
 
 // ExportAll returns every matching event (no pagination) for CSV export, newest first.
 func (s *Store) ExportAll(ctx context.Context, workspaceID string, f Filter) ([]EventResponse, error) {
