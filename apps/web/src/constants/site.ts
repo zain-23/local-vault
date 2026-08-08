@@ -3,6 +3,9 @@ export const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "https://localvault.de
 
 export const SITE_NAME = "LocalVault";
 
+/** GitHub owner/repo — star count API, marketing links, etc. */
+export const GITHUB_REPO = "zain-23/local-vault";
+
 export const OG_IMAGE_PATH = "/og.jpg";
 export const OG_IMAGE_URL = `${SITE_URL}${OG_IMAGE_PATH}`;
 export const OG_IMAGE_WIDTH = 1200;

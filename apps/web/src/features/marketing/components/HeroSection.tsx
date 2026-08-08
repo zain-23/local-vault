@@ -1,8 +1,7 @@
-import { ArrowRight, Check, Info, Zap } from "lucide-react";
+import { ArrowRight, Check, Info } from "lucide-react";
 import { motion } from "motion/react";
 
 import { LaserGrid } from "#/components/shared/LaserGrid.tsx";
-import { Badge } from "#/components/ui/Badge.tsx";
 import { Button } from "#/components/ui/Button.tsx";
 import {
 	HERO_TRUST_POINTS,
@@ -12,10 +11,6 @@ import { revealGroup } from "#/features/marketing/utils/motion.ts";
 import { Container } from "./Container.tsx";
 import { InstallCommand } from "./InstallCommand.tsx";
 import { Reveal } from "./Reveal.tsx";
-
-/** Light at the top, tarnished gold at the baseline. */
-const HEADLINE_GRADIENT =
-	"linear-gradient(180deg, var(--foreground) 30%, color-mix(in oklab, var(--primary) 72%, #000))";
 
 function HeroSection() {
 	return (
@@ -32,19 +27,12 @@ function HeroSection() {
 				className="relative z-[3]"
 			>
 				<Container className="text-center">
-					<Reveal className="inline-block">
-						<Badge className="rounded-md border-accent-border bg-accent-soft text-primary">
-							<Zap className="size-3" />
-							v0.4 — device pairing is live
-						</Badge>
-					</Reveal>
-
 					<Reveal>
 						<h1 className="mx-auto mt-5 max-w-[19ch] text-[clamp(34px,5.6vw,62px)] leading-[1.04] font-semibold tracking-[-0.035em]">
 							Stop sharing secrets{" "}
 							<span
 								className="bg-clip-text text-transparent"
-								style={{ backgroundImage: HEADLINE_GRADIENT }}
+								style={{ backgroundImage: "linear-gradient(180deg, var(--foreground) 30%, color-mix(in oklab, var(--primary) 72%, #000))" }}
 							>
 								over Slack.
 							</span>

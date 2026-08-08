@@ -15,6 +15,7 @@ import type {
 	CryptoPrimitive,
 	Feature,
 	FooterColumn,
+	InstallPlatform,
 	MarketingLink,
 	OnboardingStep,
 	ProductTab,
@@ -23,9 +24,6 @@ import type {
 	TrustPoint,
 	VaultRow,
 } from "#/features/marketing/types";
-
-/** The one command the whole page is trying to get you to run. */
-export const INSTALL_COMMAND = "brew install localvault";
 
 /** Section anchors — kept here so the nav, footer and sections can't drift apart. */
 export const SECTION_IDS = {
@@ -41,22 +39,41 @@ export const SECTION_IDS = {
 export const EXTERNAL_LINKS = {
 	github: "https://github.com/zain-23/local-vault",
 	releases: "https://github.com/zain-23/local-vault/releases",
-	license: "https://github.com/zain-23/local-vault/blob/develop/LICENSE",
+	license: "https://github.com/zain-23/local-vault/blob/main/LICENSE",
 } as const;
+
+/**
+ * `install.sh` auto-detects `darwin` vs `linux`, so the same one-liner covers
+ * both. There's no real Windows installer, only release archives, so that tab
+ * links straight to GitHub instead of showing a made-up package-manager command.
+ */
+const INSTALL_SH_COMMAND =
+	"curl -fsSL https://raw.githubusercontent.com/zain-23/local-vault/main/install.sh | bash";
+
+export const INSTALL_PLATFORMS: InstallPlatform[] = [
+	{ id: "linux", label: "Linux", kind: "command", command: INSTALL_SH_COMMAND },
+	{ id: "macos", label: "macOS", kind: "command", command: INSTALL_SH_COMMAND },
+	{
+		id: "windows",
+		label: "Windows",
+		kind: "download",
+		href: EXTERNAL_LINKS.releases,
+	},
+];
 
 export const NAV_LINKS: MarketingLink[] = [
 	{ label: "Product", href: `#${SECTION_IDS.product}` },
 	{ label: "How it works", href: `#${SECTION_IDS.how}` },
 	{ label: "Features", href: `#${SECTION_IDS.features}` },
 	{ label: "Security", href: `#${SECTION_IDS.security}` },
-	{ label: "Docs", href: `#${SECTION_IDS.install}` },
+	{ label: "Docs", href: EXTERNAL_LINKS.github, external: true },
 ];
 
 export const HERO_TRUST_POINTS: TrustPoint[] = [
 	{ id: "no-cloud", label: "No cloud storage" },
 	{ id: "offline", label: "Works offline" },
 	{ id: "mit", label: "MIT licensed" },
-	{ id: "platforms", label: "macOS & Linux" },
+	{ id: "platforms", label: "Linux, macOS & Windows" },
 ];
 
 /* ── product tour ───────────────────────────────────────────────────── */
@@ -373,16 +390,6 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
 			{ label: "Features", href: `#${SECTION_IDS.features}` },
 			{ label: "Security", href: `#${SECTION_IDS.security}` },
 			{ label: "Download", href: `#${SECTION_IDS.install}` },
-		],
-	},
-	{
-		id: "developers",
-		title: "Developers",
-		links: [
-			{ label: "CLI reference", href: "#" },
-			{ label: "Self-hosting", href: "#" },
-			{ label: "Threat model", href: "#" },
-			{ label: "Changelog", href: "#" },
 		],
 	},
 	{
