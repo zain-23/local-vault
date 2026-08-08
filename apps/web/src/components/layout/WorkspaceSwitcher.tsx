@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 	SidebarMenu,
 	SidebarMenuButton,
@@ -11,14 +12,15 @@ import {
 } from "#/components/ui";
 import { parseMemberRole } from "#/features/members/utils/canManageInvites.ts";
 import { workspacesQuery } from "#/features/onboarding/api";
+import { WorkspaceIcon } from "#/features/onboarding/lib/workspaceIcons.tsx";
+import { useModalStore } from "#/stores/useModalStore";
 import { useWorkspaceStore } from "#/stores/useWorkspaceStore";
 
 export function WorkspaceSwitcher() {
 	const { data: workspaces = [] } = useQuery(workspacesQuery);
 	const workspace = useWorkspaceStore((s) => s.active);
 	const setActive = useWorkspaceStore((s) => s.setActive);
-
-	const initial = workspace?.name?.charAt(0).toUpperCase() ?? "W";
+	const openModal = useModalStore((s) => s.openModal);
 
 	return (
 		<SidebarMenu>
@@ -29,15 +31,10 @@ export function WorkspaceSwitcher() {
 							size="lg"
 							className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
 						>
-							<div className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-sm font-semibold text-sidebar-primary-foreground">
-								{initial}
-							</div>
+							<WorkspaceIcon id={workspace?.icon} size="md" />
 							<div className="grid flex-1 text-left leading-tight">
 								<span className="truncate font-medium">
 									{workspace?.name ?? "Workspace"}
-								</span>
-								<span className="truncate text-xs text-muted-foreground">
-									{workspace?.plan ?? "Free"} plan
 								</span>
 							</div>
 							<ChevronsUpDown className="ml-auto size-4" />
@@ -56,16 +53,24 @@ export function WorkspaceSwitcher() {
 										setActive({
 											id: ws.id,
 											name: ws.name,
-											plan: "Free",
+											icon: ws.icon,
 											role: parseMemberRole(role),
 										})
 									}
 								>
+									<WorkspaceIcon id={ws.icon} size="sm" />
 									<span className="truncate">{ws.name}</span>
 									{selected && <Check className="ml-auto size-4" />}
 								</DropdownMenuItem>
 							);
 						})}
+						<DropdownMenuSeparator />
+						<DropdownMenuItem
+							onSelect={() => openModal({ type: "create-workspace" })}
+						>
+							<Plus />
+							<span>Create workspace</span>
+						</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</SidebarMenuItem>

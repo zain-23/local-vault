@@ -41,7 +41,7 @@ export function useJoinWorkspace() {
 			setActive({
 				id: workspaceId,
 				name: match?.workspace.name ?? "Workspace",
-				plan: "Free",
+				icon: match?.workspace.icon,
 				role,
 			});
 

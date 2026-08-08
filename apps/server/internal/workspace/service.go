@@ -54,6 +54,7 @@ func (s *Service) Create(ctx context.Context, userID string, req CreateWorkspace
 		ID:        id.Generate("ws_", 12),
 		Name:      req.Name,
 		Slug:      slug,
+		Icon:      NormalizeIcon(req.Icon),
 		OwnerID:   userID,
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -129,10 +130,11 @@ func (s *Service) Get(ctx context.Context, userID, workspaceID string) (*Workspa
 	return &WorkspaceResponse{Workspace: *ws, Role: mem.Role}, nil
 }
 
-// Update renames a workspace — RBAC (owner/admin) already enforced by middleware
+// Update renames a workspace and/or updates its icon — RBAC (owner/admin) already enforced by middleware
 func (s *Service) Update(ctx context.Context, workspaceID string, req UpdateWorkspaceRequest) (*Workspace, error) {
 	err := s.store.UpdateWorkspace(ctx, workspaceID, bson.M{
 		"name":       req.Name,
+		"icon":       NormalizeIcon(req.Icon),
 		"updated_at": time.Now(),
 	})
 	if err != nil {
