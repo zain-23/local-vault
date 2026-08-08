@@ -118,20 +118,6 @@ export function ActivityChart({ series, isLoading }: ActivityChartProps) {
 					</div>
 				</div>
 			</div>
-
-			<div className="mt-3 flex items-center justify-end gap-1.5 text-[11px] text-muted-foreground">
-				<span>Less</span>
-				{([0, 1, 2, 3, 4] as const).map((level) => (
-					<span
-						key={level}
-						className={cn(
-							"size-2.5 rounded-[2px] ring-1 ring-border/50",
-							ACTIVITY_LEVEL_CLASS[level],
-						)}
-					/>
-				))}
-				<span>More</span>
-			</div>
 		</div>
 	);
 }

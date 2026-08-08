@@ -1,12 +1,5 @@
-import {
-	Button,
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "#/components/ui/index.ts";
-import { PLATFORMS } from "../utils/constant.ts";
-import { CodeBlock } from "./CodeBlock.tsx";
+import { Button } from "#/components/ui/index.ts";
+import { InstallCommand } from "#/features/marketing/components/InstallCommand.tsx";
 import { StepHeading } from "./OnboardingLayout.tsx";
 
 function StepInstallCli({ onContinue }: { onContinue: () => void }) {
@@ -17,21 +10,10 @@ function StepInstallCli({ onContinue }: { onContinue: () => void }) {
 				subtitle="LocalVault is CLI-first. Install once per machine."
 			/>
 
-			{/* platform tabs; Radix tracks the active tab and swaps the command */}
-			<Tabs defaultValue="linux">
-				<TabsList className="w-full">
-					{PLATFORMS.map((p) => (
-						<TabsTrigger key={p.key} value={p.key} className="text-xs">
-							{p.label}
-						</TabsTrigger>
-					))}
-				</TabsList>
-				{PLATFORMS.map((p) => (
-					<TabsContent key={p.key} value={p.key}>
-						<CodeBlock command={p.cmd} />
-					</TabsContent>
-				))}
-			</Tabs>
+			{/* Same install command as the marketing page, so the two never drift apart. */}
+			<div className="flex flex-col items-center">
+				<InstallCommand />
+			</div>
 
 			<div className="mt-6 flex gap-2">
 				<Button variant="outline" className="flex-1" onClick={onContinue}>

@@ -130,6 +130,9 @@ function ApprovalScreen({ userCode }: { userCode?: string }) {
 			{approved && (
 				<div className="mt-6">
 					<SuccessMessage title="Device linked — you can return to your terminal." />
+					<Button asChild className="mt-5 w-full">
+						<Link to="/dashboard">Go to dashboard</Link>
+					</Button>
 				</div>
 			)}
 			{denied && (
