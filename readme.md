@@ -263,12 +263,11 @@ Requires [pnpm](https://pnpm.io), [Go](https://go.dev), and optionally [Task](ht
 
 ## What gets committed
 
+`lv init` adds `.lv/` to `.gitignore`. Treat the whole directory like `.git` — never commit it.
+
 | Path | Commit? |
 | ---- | ------- |
-| `.lv/identity.pub` | Yes — safe |
-| `.lv/vault.json.enc` | No — gitignored |
-| `.lv/identity.key` | No — gitignored |
-| `.lv/identity.json` | No — gitignored |
+| `.lv/` (entire folder) | No — gitignored |
 
 ---
 
