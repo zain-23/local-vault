@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"            // file system operations
 	"path/filepath" // cross-platform file paths (handles Windows \ vs Unix /)
+	"strings"
 	"time"
 
 	"github.com/zain-23/local-vault/apps/cli/internal/crypto"
@@ -423,20 +424,26 @@ func (v *Vault) save() error {
 	return os.WriteFile(vaultPath, finalData, 0600)
 }
 
-// addGitignoreRules adds .lv/ entries to .gitignore
+// addGitignoreRules ignores the entire .lv/ directory (like .git).
 func addGitignoreRules(dir string) error {
 	gitignorePath := filepath.Join(dir, ".gitignore")
 
-	rules := "\n# LocalVault\n.lv/vault.json.enc\n.lv/identity.key\n.lv/identity.json\n"
+	if data, err := os.ReadFile(gitignorePath); err == nil {
+		for _, line := range splitLines(string(data)) {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == ".lv" || trimmed == ".lv/" {
+				return nil
+			}
+		}
+	}
 
-	// Open file in append mode, create if not exists
-	// os.O_APPEND = add to end, os.O_CREATE = create if missing
-	// os.O_WRONLY = write only
+	rules := "\n# LocalVault\n.lv/\n"
+
 	f, err := os.OpenFile(gitignorePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
-	defer f.Close() // defer = runs when function exits (like finally in JS)
+	defer f.Close()
 
 	_, err = f.WriteString(rules)
 	return err
