@@ -159,6 +159,11 @@ func (s *Service) Update(ctx context.Context, workspaceID string, req UpdateWork
 
 // Delete removes a workspace + its memberships — RBAC (owner) already enforced by middleware
 func (s *Service) Delete(ctx context.Context, workspaceID string) error {
+	var targetName string
+	if ws, err := s.store.FindWorkspaceByID(ctx, workspaceID); err == nil && ws != nil {
+		targetName = ws.Name
+	}
+
 	if err := s.store.DeleteWorkspaceCascade(ctx, workspaceID); err != nil {
 		return apperror.ErrInternal
 	}
@@ -168,7 +173,8 @@ func (s *Service) Delete(ctx context.Context, workspaceID string) error {
 		Action:      "workspace.deleted",
 		TargetType:  "workspace",
 		TargetID:    workspaceID,
+		TargetName:  targetName,
 	})
-	
+
 	return nil
 }

@@ -162,7 +162,8 @@ func (s *Service) enrichPeers(ctx context.Context, peers []Peer) ([]PeerResponse
 
 // Delete removes a vault (route restricts this to owner/admin).
 func (s *Service) Delete(ctx context.Context, workspaceID, vaultID string) error {
-	if _, err := s.getScoped(ctx, workspaceID, vaultID); err != nil {
+	v, err := s.getScoped(ctx, workspaceID, vaultID)
+	if err != nil {
 		return err
 	}
 	if err := s.Store.DeleteVault(ctx, vaultID); err != nil {
@@ -174,6 +175,7 @@ func (s *Service) Delete(ctx context.Context, workspaceID, vaultID string) error
 		Action:      "vault.deleted",
 		TargetType:  "vault",
 		TargetID:    vaultID,
+		TargetName:  v.Name,
 	})
 
 	return nil
@@ -198,6 +200,7 @@ func (s *Service) PushSnapshot(ctx context.Context, workspaceID, vaultID, device
 		Action:      "vault.push",
 		TargetType:  "vault",
 		TargetID:    vaultID,
+		TargetName:  v.Name,
 		Details:     map[string]any{"device_id": deviceID, "bytes": len(snapshot)},
 	})
 
@@ -222,7 +225,8 @@ func (s *Service) PullSnapshot(ctx context.Context, workspaceID, vaultID, device
 
 // RemovePeer deauthorizes a peer (route restricts this to owner/admin).
 func (s *Service) RemovePeer(ctx context.Context, workspaceID, vaultID, deviceID string) error {
-	if _, err := s.getScoped(ctx, workspaceID, vaultID); err != nil {
+	v, err := s.getScoped(ctx, workspaceID, vaultID)
+	if err != nil {
 		return err
 	}
 	ok, err := s.Store.RemovePeer(ctx, vaultID, deviceID)
@@ -238,6 +242,7 @@ func (s *Service) RemovePeer(ctx context.Context, workspaceID, vaultID, deviceID
 		Action:      "vault.peer.removed",
 		TargetType:  "vault",
 		TargetID:    vaultID,
+		TargetName:  v.Name,
 		Details:     map[string]any{"device_id": deviceID},
 	})
 
@@ -292,8 +297,16 @@ func (s *Service) ListTokens(ctx context.Context, workspaceID, vaultID string) (
 
 // RevokeToken marks a token revoked so it can no longer be used to join.
 func (s *Service) RevokeToken(ctx context.Context, workspaceID, vaultID, tokenID string) error {
-	if _, err := s.getScoped(ctx, workspaceID, vaultID); err != nil {
+	v, err := s.getScoped(ctx, workspaceID, vaultID)
+	if err != nil {
 		return err
+	}
+	var tokenName string
+	for _, t := range v.Tokens {
+		if t.ID == tokenID {
+			tokenName = t.Name
+			break
+		}
 	}
 	ok, err := s.Store.RevokeToken(ctx, vaultID, tokenID)
 	if err != nil {
@@ -306,6 +319,7 @@ func (s *Service) RevokeToken(ctx context.Context, workspaceID, vaultID, tokenID
 	s.audit.Record(ctx, audit.Entry{
 		WorkspaceID: workspaceID,
 		Action:      "vault.token.revoked",
+		TargetName:  tokenName,
 		TargetType:  "vault",
 		TargetID:    vaultID,
 	})
@@ -451,6 +465,7 @@ func (s *Service) RevokeCollaborator(ctx context.Context, workspaceID, vaultID, 
 		Action:      "vault.collaborator.revoked",
 		TargetType:  "vault",
 		TargetID:    vaultID,
+		TargetName:  c.Email,
 		Details:     map[string]any{"collaborator_id": collabID},
 	})
 	return nil
