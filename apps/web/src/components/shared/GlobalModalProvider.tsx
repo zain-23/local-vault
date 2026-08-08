@@ -4,6 +4,7 @@ import { CancelInviteModal } from "#/features/members/modals/CancelInviteModal.t
 import { ChangeRoleModal } from "#/features/members/modals/ChangeRoleModal.tsx";
 import { InviteMemberModal } from "#/features/members/modals/InviteMemberModal.tsx";
 import { RemoveMemberModal } from "#/features/members/modals/RemoveMemberModal.tsx";
+import { CreateWorkspaceModal } from "#/features/onboarding/modals/CreateWorkspaceModal.tsx";
 import { type ModalType, useModalStore } from "#/stores/useModalStore";
 
 // Registry: maps a modal type to the component that renders its DialogContent.
@@ -13,6 +14,7 @@ const MODAL_REGISTRY: Record<ModalType, ComponentType> = {
 	"change-role": ChangeRoleModal,
 	"remove-member": RemoveMemberModal,
 	"cancel-invite": CancelInviteModal,
+	"create-workspace": CreateWorkspaceModal,
 };
 
 // Mounted once in the protected shell. Owns the Dialog root + open state; the

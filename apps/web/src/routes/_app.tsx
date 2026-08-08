@@ -38,7 +38,7 @@ function AppLayout() {
 		setActive({
 			id: first.workspace.id,
 			name: first.workspace.name,
-			plan: "Free",
+			icon: first.workspace.icon,
 			role: parseMemberRole(first.role),
 		});
 	}, [activeId, data, setActive]);

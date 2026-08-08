@@ -3,6 +3,7 @@ export interface Workspace {
 	id: string;
 	name: string;
 	slug: string;
+	icon?: string;
 	owner_id: string;
 	created_at: string;
 	updated_at: string;
@@ -26,15 +27,17 @@ export interface Device {
 
 // ---- request payloads ----
 
-// Step 1 — the workspace name the user types in.
+// Step 1 — the workspace name and preset icon the user picks.
 export interface CreateWorkspaceInput {
 	name: string;
+	icon: string;
 }
 
 // Step 1 (rename path) — PUT /workspaces/:id body. Same shape as create, but
 // applied to a workspace that already exists (e.g. after a page refresh).
 export interface UpdateWorkspaceInput {
 	name: string;
+	icon: string;
 }
 
 // Final step — mark the account as onboarded via PUT /account/me. The backend

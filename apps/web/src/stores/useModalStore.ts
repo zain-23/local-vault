@@ -6,7 +6,8 @@ export type ModalType =
 	| "invite-member"
 	| "change-role"
 	| "remove-member"
-	| "cancel-invite";
+	| "cancel-invite"
+	| "create-workspace";
 
 type ModalArgs = {
 	type: ModalType;
