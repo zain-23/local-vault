@@ -19,7 +19,15 @@
 
 Prebuilt `lv` binaries ship on every [GitHub Release](https://github.com/zain-23/local-vault/releases/latest) for Linux, macOS, and Windows.
 
-### Linux / macOS
+### One-liner (Linux / macOS)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zain-23/local-vault/main/install.sh | bash
+```
+
+Installs the latest `lv` to `/usr/local/bin` (or `~/.local/bin`). Override with `BIN_DIR=/path bash`.
+
+### Manual (Linux / macOS)
 
 Pick the archive for your platform, extract `lv`, and put it on your `PATH`:
 
