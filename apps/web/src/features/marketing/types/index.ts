@@ -20,6 +20,19 @@ export type TrustPoint = {
 	label: string;
 };
 
+/* ── install command ────────────────────────────────────────────────── */
+
+export type InstallPlatformId = "linux" | "macos" | "windows";
+
+/**
+ * Linux/macOS get a real one-liner (`install.sh` auto-detects the OS).
+ * Windows has no installer script, only release archives, so it links out
+ * to GitHub instead of showing a command that doesn't exist.
+ */
+export type InstallPlatform =
+	| { id: InstallPlatformId; label: string; kind: "command"; command: string }
+	| { id: InstallPlatformId; label: string; kind: "download"; href: string };
+
 /* ── product tour ───────────────────────────────────────────────────── */
 
 export type ProductTabId = "cli" | "web";

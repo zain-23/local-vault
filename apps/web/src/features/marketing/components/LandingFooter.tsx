@@ -10,7 +10,7 @@ function LandingFooter() {
 	return (
 		<footer className="border-t border-border pt-12 pb-10">
 			<Container>
-				<div className="grid grid-cols-2 gap-8 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
+				<div className="grid grid-cols-2 gap-8 md:grid-cols-[1.6fr_1fr_1fr]">
 					<div>
 						<a href={`#${SECTION_IDS.top}`} aria-label="LocalVault home">
 							<LVLogo size={22} className="gap-2.5" />
@@ -29,7 +29,7 @@ function LandingFooter() {
 									href={link.href}
 									target={link.external ? "_blank" : undefined}
 									rel={link.external ? "noreferrer noopener" : undefined}
-									className="block py-1 text-[13.5px] text-muted-foreground transition-colors hover:text-foreground"
+									className="block py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
 								>
 									{link.label}
 								</a>
