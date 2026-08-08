@@ -249,6 +249,7 @@ func (s *Service) Join(ctx context.Context, workspaceID, userID, userEmail strin
 		Action:      "member.joined",
 		TargetType:  "user",
 		TargetID:    userID,
+		TargetName:  inv.Email,
 		Details:     map[string]any{"role": inv.Role},
 	})
 
@@ -280,11 +281,16 @@ func (s *Service) ChangeRole(ctx context.Context, workspaceID, targetUserID stri
 		return nil, err
 	}
 
+	targetName := enriched[0].Name
+	if targetName == "" {
+		targetName = enriched[0].Email
+	}
 	s.audit.Record(ctx, audit.Entry{
 		WorkspaceID: workspaceID,
 		Action:      "member.role.changed",
 		TargetType:  "user",
 		TargetID:    targetUserID,
+		TargetName:  targetName,
 		Details:     map[string]any{"new_role": req.Role},
 	})
 
@@ -303,6 +309,15 @@ func (s *Service) RemoveMember(ctx context.Context, workspaceID, targetUserID st
 	if target.Role == RoleOwner {
 		return apperror.New(403, "cannot remove the workspace owner")
 	}
+
+	targetName := ""
+	if enriched, err := s.enrich(ctx, []Membership{*target}); err == nil {
+		targetName = enriched[0].Name
+		if targetName == "" {
+			targetName = enriched[0].Email
+		}
+	}
+
 	if err := s.store.DeleteMembership(ctx, workspaceID, targetUserID); err != nil {
 		return apperror.ErrInternal
 	}
@@ -311,6 +326,7 @@ func (s *Service) RemoveMember(ctx context.Context, workspaceID, targetUserID st
 		Action:      "member.removed",
 		TargetType:  "user",
 		TargetID:    targetUserID,
+		TargetName:  targetName,
 	})
 	return nil
 }

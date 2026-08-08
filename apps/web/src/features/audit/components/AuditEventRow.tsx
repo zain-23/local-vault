@@ -6,6 +6,7 @@ import {
 	actionTone,
 	formatEventClock,
 	hueFromString,
+	resolveTargetLabel,
 } from "#/features/audit/utils";
 import { cn } from "#/lib/utils.ts";
 import { initialsFromName } from "#/utils";
@@ -19,7 +20,7 @@ export function AuditEventRow({ event }: AuditEventRowProps) {
 	const actor = event.actor_name?.trim() || "Someone";
 	const verb = actionLabel(event.action);
 	const tone = actionTone(event.action);
-	const target = event.target_name?.trim() || event.target_id?.trim();
+	const target = resolveTargetLabel(event);
 	const meta = [event.device_id, event.ip].filter(Boolean).join(" · ");
 	const hue = hueFromString(event.actor_id || actor);
 	const initials = initialsFromName(actor);
