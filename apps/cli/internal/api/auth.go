@@ -38,3 +38,21 @@ func (c *Client) DevicePoll(deviceCode string) (*DevicePollResponse, error) {
 	}
 	return &res, nil
 }
+
+// RefreshResponse carries the new access token.
+type RefreshResponse struct {
+	AccessToken string `json:"access_token"`
+}
+
+// DeviceRefresh exchanges a refresh token for a new access token via the
+// device-scoped refresh endpoint (unauthenticated; the refresh token is the
+// credential). Kept separate from the browser's cookie-based auth/refresh —
+// the CLI has no cookie jar and carries its refresh token itself.
+func (c *Client) DeviceRefresh(refreshToken string) (*RefreshResponse, error) {
+	body := map[string]string{"refresh_token": refreshToken}
+	var res RefreshResponse
+	if err := c.do(http.MethodPost, "/api/v1/device/refresh", body, &res, false); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

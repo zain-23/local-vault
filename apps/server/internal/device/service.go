@@ -16,6 +16,7 @@ import (
 type AuthIssuer interface {
 	IssueSession(ctx context.Context, userID, deviceID, ip, userAgent string) (*auth.LoginResponse, error)
 	RevokeDeviceSessions(ctx context.Context, deviceID string) error
+	RefreshToken(ctx context.Context, req auth.RefreshRequest) (*auth.RefreshResponse, error)
 }
 
 // Service holds the device domain's business logic.
@@ -199,6 +200,17 @@ func (s *Service) Poll(ctx context.Context, req PollRequest, ip, userAgent strin
 		RefreshToken: tokens.RefreshToken,
 		DeviceID:     authReq.DeviceID,
 	}, nil
+}
+
+// Refresh exchanges a CLI-held refresh token for a fresh access token. A dedicated
+// device-scoped endpoint — separate from the browser's cookie-based auth/refresh —
+// since the CLI has no cookie jar and carries its refresh token itself.
+func (s *Service) Refresh(ctx context.Context, refreshToken string) (*RefreshResponse, error) {
+	res, err := s.auth.RefreshToken(ctx, auth.RefreshRequest{RefreshToken: refreshToken})
+	if err != nil {
+		return nil, err
+	}
+	return &RefreshResponse{AccessToken: res.AccessToken}, nil
 }
 
 // ListDevices returns the caller's own devices in a workspace. Scoped to userID so

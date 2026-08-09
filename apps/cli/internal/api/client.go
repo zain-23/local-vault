@@ -137,20 +137,18 @@ func (c *Client) currentTokens() (*authstore.Tokens, error) {
 	return t, nil
 }
 
-// refresh exchanges the refresh token for a fresh access token (unauthenticated call).
+// refresh exchanges the refresh token for a fresh access token via the
+// device-scoped refresh endpoint (unauthenticated call).
 func (c *Client) refresh() error {
 	tok, err := c.currentTokens()
 	if err != nil {
 		return err
 	}
-	var out struct {
-		AccessToken string `json:"access_token"`
-	}
-	if err := c.do(http.MethodPost, "/api/v1/auth/refresh",
-		map[string]string{"refresh_token": tok.RefreshToken}, &out, false); err != nil {
+	res, err := c.DeviceRefresh(tok.RefreshToken)
+	if err != nil {
 		return err
 	}
-	tok.AccessToken = out.AccessToken
+	tok.AccessToken = res.AccessToken
 	c.tokens = tok
 	return authstore.Save(tok)
 }

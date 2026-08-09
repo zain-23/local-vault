@@ -47,6 +47,18 @@ type PollResponse struct {
 	DeviceID     string `json:"device_id,omitempty"`
 }
 
+// RefreshRequest is the POST /device/refresh body — sent by the CLI to exchange
+// its refresh token for a new access token. Dedicated device-scoped endpoint so
+// the CLI never needs a cookie jar, unlike the browser's cookie-based auth/refresh.
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
+// RefreshResponse carries the new access token.
+type RefreshResponse struct {
+	AccessToken string `json:"access_token"`
+}
+
 // DeviceResponse is one row of GET /device.
 type DeviceResponse struct {
 	ID           string    `json:"id"`

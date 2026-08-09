@@ -11,6 +11,7 @@ func RegisterRoutes(app *fiber.App, h *Handler, authMW fiber.Handler) {
 	d.Post("/authorize", h.Authorize)
 	// Registered before "/authorize/:userCode" so "poll" is never parsed as a user code.
 	d.Post("/authorize/poll", h.Poll)
+	d.Post("/refresh", h.Refresh)
 
 	// --- authenticated (browser + dashboard) ---
 	d.Get("/authorize/:userCode", authMW, h.ApprovalDetails)
