@@ -49,7 +49,7 @@ func TestDoRefreshesOn401(t *testing.T) {
 	var calls int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/api/v1/auth/refresh":
+		case "/api/v1/device/refresh":
 			writeEnvelope(w, 200, map[string]string{"access_token": "acc2"})
 		case "/x":
 			n := atomic.AddInt32(&calls, 1)

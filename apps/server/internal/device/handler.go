@@ -62,6 +62,22 @@ func (h *Handler) Decide(c *fiber.Ctx) error {
 	return response.Success(c, nil, 200, "device authorization "+req.Action+"d")
 }
 
+// Refresh — POST /api/v1/device/refresh (no auth; the refresh token is the credential).
+func (h *Handler) Refresh(c *fiber.Ctx) error {
+	var req RefreshRequest
+	if err := c.BodyParser(&req); err != nil {
+		return apperror.ErrInvalidBody
+	}
+	if msg := validate.Struct(req); msg != "" {
+		return apperror.New(400, msg)
+	}
+	res, err := h.svc.Refresh(c.UserContext(), req.RefreshToken)
+	if err != nil {
+		return err
+	}
+	return response.Success(c, res, 200, "token refreshed")
+}
+
 // Poll — POST /api/v1/device/authorize/poll (no auth; the device_code is the credential).
 func (h *Handler) Poll(c *fiber.Ctx) error {
 	var req PollRequest
