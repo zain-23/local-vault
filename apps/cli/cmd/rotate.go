@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 
@@ -284,13 +285,19 @@ func getEditor() string {
 	if editor := os.Getenv("VISUAL"); editor != "" {
 		return editor
 	}
+
+	fallback := "vi"
 	editors := []string{"nano", "vim", "vi"}
+	if runtime.GOOS == "windows" {
+		fallback = "notepad"
+		editors = []string{"nano", "vim", "notepad"}
+	}
 	for _, e := range editors {
 		if _, err := exec.LookPath(e); err == nil {
 			return e
 		}
 	}
-	return "vi"
+	return fallback
 }
 
 // parseEnvContent parses KEY=VALUE lines ignoring comments
