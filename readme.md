@@ -246,18 +246,57 @@ apps/web      React web app
 packages/     Shared TypeScript packages
 ```
 
-```bash
-pnpm install
-pnpm dev              # web
-pnpm build
-pnpm lint / test
+Requires [Go](https://go.dev) 1.26+, [pnpm](https://pnpm.io) 10.12.1, and optionally
+[Task](https://taskfile.dev).
 
-task cli:build
-task server:run
-task test:go
+### Running just the CLI locally
+
+No server needed — enough to try `init`/`add`/`get`/`list`/`import`/`inject`/`rotate`
+against the hosted API:
+
+```bash
+go build -o lv ./apps/cli   # or: task cli:build
+./lv --help
 ```
 
-Requires [pnpm](https://pnpm.io), [Go](https://go.dev), and optionally [Task](https://taskfile.dev).
+### Running the full stack locally
+
+The server needs MongoDB and RabbitMQ, plus a GitHub OAuth app for `lv login`. Set these
+env vars before starting it (none of these values ship in the repo):
+
+```bash
+export MONGODB_URI=mongodb://localhost:27017
+export MONGODB_DATABASE=localvault
+export JWT_SECRET=<your-own-value>
+export GITHUB_CLIENT_ID=<your GitHub OAuth app client id>
+export GITHUB_CLIENT_SECRET=<your GitHub OAuth app client secret>
+export GITHUB_REDIRECT_URL=http://localhost:8080/api/v1/auth/oauth/github/callback
+export FRONTEND_URL=http://localhost:3000
+export RABBITMQ_URL=amqp://guest:guest@localhost:5672/
+export RESEND_API_KEY=<optional — only needed to actually send invite emails>
+```
+
+```bash
+task server:run       # or: go run ./apps/server
+task server:worker    # or: go run ./apps/server/worker   (needed for invite emails)
+```
+
+```bash
+pnpm install
+pnpm dev               # web dashboard, http://localhost:3000
+pnpm build
+pnpm lint / test
+```
+
+Point the CLI at your local server instead of the hosted one:
+
+```bash
+export SERVER_URL=http://localhost:8080
+```
+
+```bash
+task test:go           # or: go test ./...
+```
 
 ---
 
